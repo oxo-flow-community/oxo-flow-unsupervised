@@ -1,0 +1,857 @@
+[workflow]
+name = "oxo-flow-unsupervised"
+version = "0.11.0"
+description = "Unsupervised analyses of omics matrices: PCA, UMAP/densMAP embeddings, hierarchical clustering heatmaps, Leiden clustering, clustree and cluster validation. Port of epigen/unsupervised_analysis v4.0.2 (default parameters main path)."
+author = "oxo-flow-community"
+
+# Default path (matches upstream config/config.yaml defaults for the test
+# dataset "digits"): matrix -> prep (feature subsetting) -> PCA -> UMAP/densMAP
+# -> distance matrices -> Leiden clustering -> cluster validation -> plots.
+#
+# Port notes:
+# - Samples come from [[sample_groups]] (upstream annotation.csv "name" column).
+#   The annotation columns data/metadata map to the port convention
+#   {config.data_dir}/{sample}_data.csv and {config.data_dir}/{sample}_labels.csv
+#   (see config/annotation.csv, README fidelity table).
+# - Upstream parameter LISTS (umap metrics/n_neighbors/min_dist, heatmap
+#   metrics, leiden partition_types/resolutions) fan out into per-combination
+#   rules; oxo-flow has no parameter-combination wildcard, so each default
+#   combination is an explicit rule (rule names carry the combination).
+# - scripts/ are the upstream scripts with the snakemake-object access block
+#   replaced by CLI arguments; the analysis code is unchanged.
+
+[config]
+# RESOURCES (upstream config: mem/threads)
+threads = 2
+mem_mb = 32000
+# GENERAL
+project_name = "digits"
+data_dir = "test/fixtures"
+result_path = "results"
+samples_by_features = 1
+# VISUALIZATION
+coord_fixed = 0
+scatterplot2d_size = 1
+scatterplot2d_alpha = 1
+# CLUSTER VALIDATION
+sample_proportion = 1
+# METADATA
+metadata_of_interest = ["target"]
+features_to_plot = []
+# PCA (upstream pca: svd_solver, n_components)
+pca_svd_solver = "auto"
+pca_n_components = 0.9
+# UMAP & densMAP (upstream umap: single default metric/neighbors/min_dist)
+umap_metric = "euclidean"
+umap_n_neighbors = 15
+umap_min_dist = 0.1
+umap_densmap = 1
+umap_connectivity = 1
+umap_diagnostics = 1
+# HEATMAP (upstream heatmap: metrics [correlation, cosine] -> 2 rules)
+heatmap_hclust_method = "complete"
+heatmap_n_observations = 1
+heatmap_n_features = 0.5
+# LEIDEN (upstream leiden: metric euclidean / n_neighbors 15 -> 6 rules)
+leiden_metric = "euclidean"
+leiden_n_neighbors = 15
+leiden_n_iterations = 2
+# CLUSTREE
+clustree_count_filter = 0
+clustree_prop_filter = 0.1
+clustree_layout = "tree"
+clustree_categorical_label_option = "majority"
+clustree_numerical_aggregation_option = "mean"
+
+[defaults]
+threads = 2
+memory = "32000M"
+
+[[sample_groups]]
+name = "cohort"
+samples = ["digits"]
+
+# ---------------------------------------------------------------------------
+# DIMENSIONALITY REDUCTION (workflow/rules/dimred.smk)
+# ---------------------------------------------------------------------------
+
+# upstream rule: pca
+[[rules]]
+name = "pca"
+input = ["{config.data_dir}/{sample}_data.csv", "{config.data_dir}/{sample}_labels.csv"]
+output = [
+    "{config.result_path}/unsupervised_analysis/{sample}/PCA/PCA_{config.pca_svd_solver}_{config.pca_n_components}_object.pickle",
+    "{config.result_path}/unsupervised_analysis/{sample}/PCA/PCA_{config.pca_svd_solver}_{config.pca_n_components}_data.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/PCA/PCA_{config.pca_svd_solver}_{config.pca_n_components}_data_small.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/PCA/PCA_{config.pca_svd_solver}_{config.pca_n_components}_loadings.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/PCA/PCA_{config.pca_svd_solver}_{config.pca_n_components}_loadings_small.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/PCA/PCA_{config.pca_svd_solver}_{config.pca_n_components}_var.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/PCA/PCA_{config.pca_svd_solver}_{config.pca_n_components}_axes.csv",
+]
+description = "Principal component analysis (sklearn) of the sample matrix"
+script = "scripts/pca.py --data {input[0]} --out-object {output[0]} --out-data {output[1]} --out-data-small {output[2]} --out-loadings {output[3]} --out-loadings-small {output[4]} --out-var {output[5]} --out-axes {output[6]} --samples-by-features {config.samples_by_features} --n-components {config.pca_n_components} --svd-solver {config.pca_svd_solver}"
+[rules.environment]
+conda = "envs/umap_leiden.yaml"
+
+# upstream rule: umap_graph (knn graph, metric x max(n_neighbors))
+[[rules]]
+name = "umap_graph"
+input = ["{config.data_dir}/{sample}_data.csv", "{config.data_dir}/{sample}_labels.csv"]
+output = ["{config.result_path}/unsupervised_analysis/{sample}/UMAP/UMAP_{config.umap_metric}_{config.umap_n_neighbors}_graph.pickle"]
+description = "UMAP knn-graph generation (pynndescent)"
+script = "scripts/umap_graph.py --data {input[0]} --out {output} --samples-by-features {config.samples_by_features} --metric {config.umap_metric} --n-neighbors {config.umap_n_neighbors}"
+[rules.environment]
+conda = "envs/umap_leiden.yaml"
+
+# upstream rule: umap_embed (n_components = 2, default config)
+[[rules]]
+name = "umap_embed_2d"
+input = [
+    "{config.data_dir}/{sample}_data.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/UMAP/UMAP_{config.umap_metric}_{config.umap_n_neighbors}_graph.pickle",
+]
+output = [
+    "{config.result_path}/unsupervised_analysis/{sample}/UMAP/UMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2_object.pickle",
+    "{config.result_path}/unsupervised_analysis/{sample}/UMAP/UMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2_data.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/UMAP/UMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2_axes.csv",
+]
+description = "UMAP embedding of the knn-graph (2D)"
+script = "scripts/umap_embed.py --data {input[0]} --graph {input[1]} --out-object {output[0]} --out-data {output[1]} --out-axes {output[2]} --samples-by-features {config.samples_by_features} --metric {config.umap_metric} --n-neighbors {config.umap_n_neighbors} --min-dist {config.umap_min_dist} --n-components 2 --densmap 0"
+[rules.environment]
+conda = "envs/umap_leiden.yaml"
+
+# upstream rule: umap_embed (n_components = 3, default config)
+[[rules]]
+name = "umap_embed_3d"
+input = [
+    "{config.data_dir}/{sample}_data.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/UMAP/UMAP_{config.umap_metric}_{config.umap_n_neighbors}_graph.pickle",
+]
+output = [
+    "{config.result_path}/unsupervised_analysis/{sample}/UMAP/UMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_3_object.pickle",
+    "{config.result_path}/unsupervised_analysis/{sample}/UMAP/UMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_3_data.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/UMAP/UMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_3_axes.csv",
+]
+description = "UMAP embedding of the knn-graph (3D)"
+script = "scripts/umap_embed.py --data {input[0]} --graph {input[1]} --out-object {output[0]} --out-data {output[1]} --out-axes {output[2]} --samples-by-features {config.samples_by_features} --metric {config.umap_metric} --n-neighbors {config.umap_n_neighbors} --min-dist {config.umap_min_dist} --n-components 3 --densmap 0"
+[rules.environment]
+conda = "envs/umap_leiden.yaml"
+
+# upstream rule: densmap_embed (n_components = 2, default config)
+[[rules]]
+name = "densmap_embed_2d"
+input = [
+    "{config.data_dir}/{sample}_data.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/UMAP/UMAP_{config.umap_metric}_{config.umap_n_neighbors}_graph.pickle",
+]
+output = [
+    "{config.result_path}/unsupervised_analysis/{sample}/densMAP/densMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2_object.pickle",
+    "{config.result_path}/unsupervised_analysis/{sample}/densMAP/densMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2_data.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/densMAP/densMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2_axes.csv",
+]
+description = "densMAP embedding of the knn-graph (2D)"
+script = "scripts/umap_embed.py --data {input[0]} --graph {input[1]} --out-object {output[0]} --out-data {output[1]} --out-axes {output[2]} --samples-by-features {config.samples_by_features} --metric {config.umap_metric} --n-neighbors {config.umap_n_neighbors} --min-dist {config.umap_min_dist} --n-components 2 --densmap 1"
+[rules.environment]
+conda = "envs/umap_leiden.yaml"
+
+# upstream rule: densmap_embed (n_components = 3, default config)
+[[rules]]
+name = "densmap_embed_3d"
+input = [
+    "{config.data_dir}/{sample}_data.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/UMAP/UMAP_{config.umap_metric}_{config.umap_n_neighbors}_graph.pickle",
+]
+output = [
+    "{config.result_path}/unsupervised_analysis/{sample}/densMAP/densMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_3_object.pickle",
+    "{config.result_path}/unsupervised_analysis/{sample}/densMAP/densMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_3_data.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/densMAP/densMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_3_axes.csv",
+]
+description = "densMAP embedding of the knn-graph (3D)"
+script = "scripts/umap_embed.py --data {input[0]} --graph {input[1]} --out-object {output[0]} --out-data {output[1]} --out-axes {output[2]} --samples-by-features {config.samples_by_features} --metric {config.umap_metric} --n-neighbors {config.umap_n_neighbors} --min-dist {config.umap_min_dist} --n-components 3 --densmap 1"
+[rules.environment]
+conda = "envs/umap_leiden.yaml"
+
+# upstream rule: distance_matrix (observations x correlation, default config)
+[[rules]]
+name = "distance_matrix_observations_correlation"
+input = ["{config.data_dir}/{sample}_data.csv", "{config.data_dir}/{sample}_labels.csv"]
+output = ["{config.result_path}/unsupervised_analysis/{sample}/Heatmap/DistanceMatrix_correlation_observations.csv"]
+description = "Observation distance matrix (correlation)"
+script = "scripts/distance_matrix.py --data {input[0]} --out {output} --samples-by-features {config.samples_by_features} --type observations --metric correlation --n-observations {config.heatmap_n_observations} --n-features {config.heatmap_n_features}"
+[rules.environment]
+conda = "envs/umap_leiden.yaml"
+
+# upstream rule: distance_matrix (observations x cosine, default config)
+[[rules]]
+name = "distance_matrix_observations_cosine"
+input = ["{config.data_dir}/{sample}_data.csv", "{config.data_dir}/{sample}_labels.csv"]
+output = ["{config.result_path}/unsupervised_analysis/{sample}/Heatmap/DistanceMatrix_cosine_observations.csv"]
+description = "Observation distance matrix (cosine)"
+script = "scripts/distance_matrix.py --data {input[0]} --out {output} --samples-by-features {config.samples_by_features} --type observations --metric cosine --n-observations {config.heatmap_n_observations} --n-features {config.heatmap_n_features}"
+[rules.environment]
+conda = "envs/umap_leiden.yaml"
+
+# upstream rule: distance_matrix (features x correlation, default config)
+[[rules]]
+name = "distance_matrix_features_correlation"
+input = ["{config.data_dir}/{sample}_data.csv", "{config.data_dir}/{sample}_labels.csv"]
+output = ["{config.result_path}/unsupervised_analysis/{sample}/Heatmap/DistanceMatrix_correlation_features.csv"]
+description = "Feature distance matrix (correlation)"
+script = "scripts/distance_matrix.py --data {input[0]} --out {output} --samples-by-features {config.samples_by_features} --type features --metric correlation --n-observations {config.heatmap_n_observations} --n-features {config.heatmap_n_features}"
+[rules.environment]
+conda = "envs/umap_leiden.yaml"
+
+# upstream rule: distance_matrix (features x cosine, default config)
+[[rules]]
+name = "distance_matrix_features_cosine"
+input = ["{config.data_dir}/{sample}_data.csv", "{config.data_dir}/{sample}_labels.csv"]
+output = ["{config.result_path}/unsupervised_analysis/{sample}/Heatmap/DistanceMatrix_cosine_features.csv"]
+description = "Feature distance matrix (cosine)"
+script = "scripts/distance_matrix.py --data {input[0]} --out {output} --samples-by-features {config.samples_by_features} --type features --metric cosine --n-observations {config.heatmap_n_observations} --n-features {config.heatmap_n_features}"
+[rules.environment]
+conda = "envs/umap_leiden.yaml"
+
+# ---------------------------------------------------------------------------
+# PREPROCESSING (workflow/rules/visualization.smk: prep_feature_plot)
+# ---------------------------------------------------------------------------
+
+# upstream rule: prep_feature_plot (feature subsetting for plot metadata)
+[[rules]]
+name = "prep_feature_plot"
+input = ["{config.data_dir}/{sample}_data.csv"]
+output = ["{config.result_path}/unsupervised_analysis/{sample}/metadata_features.csv"]
+description = "Subset data features for use as plot metadata"
+script = "scripts/subset_data.py --data {input[0]} --out {output} --samples-by-features {config.samples_by_features} --features {config.features_to_plot}"
+[rules.environment]
+conda = "envs/umap_leiden.yaml"
+
+# ---------------------------------------------------------------------------
+# CLUSTERING (workflow/rules/clustering.smk: Leiden)
+# ---------------------------------------------------------------------------
+
+# upstream rule: leiden_cluster — RBConfigurationVertexPartition x resolutions
+[[rules]]
+name = "leiden_RBConfigurationVertexPartition_0p5"
+input = [
+    "{config.data_dir}/{sample}_data.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/UMAP/UMAP_{config.leiden_metric}_{config.leiden_n_neighbors}_graph.pickle",
+]
+output = ["{config.result_path}/unsupervised_analysis/{sample}/Leiden/Leiden_{config.leiden_metric}_{config.leiden_n_neighbors}_RBConfigurationVertexPartition_0.5_clustering.csv"]
+description = "Leiden clustering (RBConfigurationVertexPartition, resolution 0.5)"
+script = "scripts/leiden_cluster.py --data {input[0]} --graph {input[1]} --out {output} --samples-by-features {config.samples_by_features} --metric {config.leiden_metric} --n-neighbors {config.leiden_n_neighbors} --partition-type RBConfigurationVertexPartition --resolution 0.5 --n-iterations {config.leiden_n_iterations}"
+[rules.environment]
+conda = "envs/umap_leiden.yaml"
+
+[[rules]]
+name = "leiden_RBConfigurationVertexPartition_1"
+input = [
+    "{config.data_dir}/{sample}_data.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/UMAP/UMAP_{config.leiden_metric}_{config.leiden_n_neighbors}_graph.pickle",
+]
+output = ["{config.result_path}/unsupervised_analysis/{sample}/Leiden/Leiden_{config.leiden_metric}_{config.leiden_n_neighbors}_RBConfigurationVertexPartition_1_clustering.csv"]
+description = "Leiden clustering (RBConfigurationVertexPartition, resolution 1)"
+script = "scripts/leiden_cluster.py --data {input[0]} --graph {input[1]} --out {output} --samples-by-features {config.samples_by_features} --metric {config.leiden_metric} --n-neighbors {config.leiden_n_neighbors} --partition-type RBConfigurationVertexPartition --resolution 1 --n-iterations {config.leiden_n_iterations}"
+[rules.environment]
+conda = "envs/umap_leiden.yaml"
+
+[[rules]]
+name = "leiden_RBConfigurationVertexPartition_1p5"
+input = [
+    "{config.data_dir}/{sample}_data.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/UMAP/UMAP_{config.leiden_metric}_{config.leiden_n_neighbors}_graph.pickle",
+]
+output = ["{config.result_path}/unsupervised_analysis/{sample}/Leiden/Leiden_{config.leiden_metric}_{config.leiden_n_neighbors}_RBConfigurationVertexPartition_1.5_clustering.csv"]
+description = "Leiden clustering (RBConfigurationVertexPartition, resolution 1.5)"
+script = "scripts/leiden_cluster.py --data {input[0]} --graph {input[1]} --out {output} --samples-by-features {config.samples_by_features} --metric {config.leiden_metric} --n-neighbors {config.leiden_n_neighbors} --partition-type RBConfigurationVertexPartition --resolution 1.5 --n-iterations {config.leiden_n_iterations}"
+[rules.environment]
+conda = "envs/umap_leiden.yaml"
+
+[[rules]]
+name = "leiden_RBConfigurationVertexPartition_2"
+input = [
+    "{config.data_dir}/{sample}_data.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/UMAP/UMAP_{config.leiden_metric}_{config.leiden_n_neighbors}_graph.pickle",
+]
+output = ["{config.result_path}/unsupervised_analysis/{sample}/Leiden/Leiden_{config.leiden_metric}_{config.leiden_n_neighbors}_RBConfigurationVertexPartition_2_clustering.csv"]
+description = "Leiden clustering (RBConfigurationVertexPartition, resolution 2)"
+script = "scripts/leiden_cluster.py --data {input[0]} --graph {input[1]} --out {output} --samples-by-features {config.samples_by_features} --metric {config.leiden_metric} --n-neighbors {config.leiden_n_neighbors} --partition-type RBConfigurationVertexPartition --resolution 2 --n-iterations {config.leiden_n_iterations}"
+[rules.environment]
+conda = "envs/umap_leiden.yaml"
+
+[[rules]]
+name = "leiden_RBConfigurationVertexPartition_4"
+input = [
+    "{config.data_dir}/{sample}_data.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/UMAP/UMAP_{config.leiden_metric}_{config.leiden_n_neighbors}_graph.pickle",
+]
+output = ["{config.result_path}/unsupervised_analysis/{sample}/Leiden/Leiden_{config.leiden_metric}_{config.leiden_n_neighbors}_RBConfigurationVertexPartition_4_clustering.csv"]
+description = "Leiden clustering (RBConfigurationVertexPartition, resolution 4)"
+script = "scripts/leiden_cluster.py --data {input[0]} --graph {input[1]} --out {output} --samples-by-features {config.samples_by_features} --metric {config.leiden_metric} --n-neighbors {config.leiden_n_neighbors} --partition-type RBConfigurationVertexPartition --resolution 4 --n-iterations {config.leiden_n_iterations}"
+[rules.environment]
+conda = "envs/umap_leiden.yaml"
+
+# upstream rule: leiden_cluster — ModularityVertexPartition (resolution NA)
+[[rules]]
+name = "leiden_ModularityVertexPartition_NA"
+input = [
+    "{config.data_dir}/{sample}_data.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/UMAP/UMAP_{config.leiden_metric}_{config.leiden_n_neighbors}_graph.pickle",
+]
+output = ["{config.result_path}/unsupervised_analysis/{sample}/Leiden/Leiden_{config.leiden_metric}_{config.leiden_n_neighbors}_ModularityVertexPartition_NA_clustering.csv"]
+description = "Leiden clustering (ModularityVertexPartition)"
+script = "scripts/leiden_cluster.py --data {input[0]} --graph {input[1]} --out {output} --samples-by-features {config.samples_by_features} --metric {config.leiden_metric} --n-neighbors {config.leiden_n_neighbors} --partition-type ModularityVertexPartition --resolution NA --n-iterations {config.leiden_n_iterations}"
+[rules.environment]
+conda = "envs/umap_leiden.yaml"
+
+# upstream rule: aggregate_clustering_results (per-method aggregation; input[0]
+# = metadata is declared but unused upstream — mirrored here)
+[[rules]]
+name = "aggregate_clustering_results"
+input = ["{config.data_dir}/{sample}_labels.csv"]
+expand_inputs = [
+    { pattern = "{config.result_path}/unsupervised_analysis/{sample}/Leiden/Leiden_{config.leiden_metric}_{config.leiden_n_neighbors}_RBConfigurationVertexPartition_0.5_clustering.csv", variables = { sample = "config.samples_list" } },
+    { pattern = "{config.result_path}/unsupervised_analysis/{sample}/Leiden/Leiden_{config.leiden_metric}_{config.leiden_n_neighbors}_RBConfigurationVertexPartition_1_clustering.csv", variables = { sample = "config.samples_list" } },
+    { pattern = "{config.result_path}/unsupervised_analysis/{sample}/Leiden/Leiden_{config.leiden_metric}_{config.leiden_n_neighbors}_RBConfigurationVertexPartition_1.5_clustering.csv", variables = { sample = "config.samples_list" } },
+    { pattern = "{config.result_path}/unsupervised_analysis/{sample}/Leiden/Leiden_{config.leiden_metric}_{config.leiden_n_neighbors}_RBConfigurationVertexPartition_2_clustering.csv", variables = { sample = "config.samples_list" } },
+    { pattern = "{config.result_path}/unsupervised_analysis/{sample}/Leiden/Leiden_{config.leiden_metric}_{config.leiden_n_neighbors}_RBConfigurationVertexPartition_4_clustering.csv", variables = { sample = "config.samples_list" } },
+    { pattern = "{config.result_path}/unsupervised_analysis/{sample}/Leiden/Leiden_{config.leiden_metric}_{config.leiden_n_neighbors}_ModularityVertexPartition_NA_clustering.csv", variables = { sample = "config.samples_list" } },
+]
+output = ["{config.result_path}/unsupervised_analysis/{sample}/Leiden/Leiden_clusterings.csv"]
+description = "Aggregate per-method clustering results"
+script = "scripts/aggregate_clustering.py --inputs {input} --out {output}"
+
+# upstream rule: aggregate_all_clustering_results (across methods; default
+# path: Leiden only)
+[[rules]]
+name = "aggregate_all_clustering_results"
+input = []
+expand_inputs = [
+    { pattern = "{config.result_path}/unsupervised_analysis/{sample}/Leiden/Leiden_clusterings.csv", variables = { sample = "config.samples_list" } },
+]
+output = ["{config.result_path}/unsupervised_analysis/{sample}/metadata_clusterings.csv"]
+description = "Aggregate clustering results across methods"
+script = "scripts/aggregate_all_clustering.py --inputs {input} --out {output}"
+
+# ---------------------------------------------------------------------------
+# VISUALIZATION (workflow/rules/visualization.smk)
+# ---------------------------------------------------------------------------
+
+# upstream rule: plot_dimred_metadata (PCA, n_components=2)
+[[rules]]
+name = "plot_dimred_metadata_pca"
+input = [
+    "{config.result_path}/unsupervised_analysis/{sample}/PCA/PCA_{config.pca_svd_solver}_{config.pca_n_components}_data_small.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/PCA/PCA_{config.pca_svd_solver}_{config.pca_n_components}_axes.csv",
+    "{config.data_dir}/{sample}_labels.csv",
+]
+output = ["{config.result_path}/unsupervised_analysis/{sample}/PCA/plots/PCA_{config.pca_svd_solver}_{config.pca_n_components}_2/metadata"]
+description = "PCA 2D scatter plots colored by metadata"
+script = "scripts/plot_2d.R --data {input[0]} --axes {input[1]} --metadata {input[2]} --out {output} --size {config.scatterplot2d_size} --alpha {config.scatterplot2d_alpha} --coord-fixed {config.coord_fixed}"
+[rules.environment]
+conda = "envs/ggplot.yaml"
+[rules.resources]
+memory = "32000M"
+
+# upstream rule: plot_dimred_metadata (UMAP, n_components=2)
+[[rules]]
+name = "plot_dimred_metadata_umap"
+input = [
+    "{config.result_path}/unsupervised_analysis/{sample}/UMAP/UMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2_data.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/UMAP/UMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2_axes.csv",
+    "{config.data_dir}/{sample}_labels.csv",
+]
+output = ["{config.result_path}/unsupervised_analysis/{sample}/UMAP/plots/UMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2/metadata"]
+description = "UMAP 2D scatter plots colored by metadata"
+script = "scripts/plot_2d.R --data {input[0]} --axes {input[1]} --metadata {input[2]} --out {output} --size {config.scatterplot2d_size} --alpha {config.scatterplot2d_alpha} --coord-fixed {config.coord_fixed}"
+[rules.environment]
+conda = "envs/ggplot.yaml"
+[rules.resources]
+memory = "32000M"
+
+# upstream rule: plot_dimred_metadata (densMAP, n_components=2)
+[[rules]]
+name = "plot_dimred_metadata_densmap"
+input = [
+    "{config.result_path}/unsupervised_analysis/{sample}/densMAP/densMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2_data.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/densMAP/densMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2_axes.csv",
+    "{config.data_dir}/{sample}_labels.csv",
+]
+output = ["{config.result_path}/unsupervised_analysis/{sample}/densMAP/plots/densMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2/metadata"]
+description = "densMAP 2D scatter plots colored by metadata"
+script = "scripts/plot_2d.R --data {input[0]} --axes {input[1]} --metadata {input[2]} --out {output} --size {config.scatterplot2d_size} --alpha {config.scatterplot2d_alpha} --coord-fixed {config.coord_fixed}"
+[rules.environment]
+conda = "envs/ggplot.yaml"
+[rules.resources]
+memory = "32000M"
+
+# upstream rule: plot_dimred_clustering (PCA, n_components=2)
+[[rules]]
+name = "plot_dimred_clustering_pca"
+input = [
+    "{config.result_path}/unsupervised_analysis/{sample}/PCA/PCA_{config.pca_svd_solver}_{config.pca_n_components}_data_small.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/PCA/PCA_{config.pca_svd_solver}_{config.pca_n_components}_axes.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/metadata_clusterings.csv",
+]
+output = ["{config.result_path}/unsupervised_analysis/{sample}/PCA/plots/PCA_{config.pca_svd_solver}_{config.pca_n_components}_2/clustering"]
+description = "PCA 2D scatter plots colored by clustering results"
+script = "scripts/plot_2d.R --data {input[0]} --axes {input[1]} --metadata {input[2]} --out {output} --size {config.scatterplot2d_size} --alpha {config.scatterplot2d_alpha} --coord-fixed {config.coord_fixed}"
+[rules.environment]
+conda = "envs/ggplot.yaml"
+[rules.resources]
+memory = "32000M"
+
+# upstream rule: plot_dimred_clustering (UMAP, n_components=2)
+[[rules]]
+name = "plot_dimred_clustering_umap"
+input = [
+    "{config.result_path}/unsupervised_analysis/{sample}/UMAP/UMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2_data.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/UMAP/UMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2_axes.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/metadata_clusterings.csv",
+]
+output = ["{config.result_path}/unsupervised_analysis/{sample}/UMAP/plots/UMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2/clustering"]
+description = "UMAP 2D scatter plots colored by clustering results"
+script = "scripts/plot_2d.R --data {input[0]} --axes {input[1]} --metadata {input[2]} --out {output} --size {config.scatterplot2d_size} --alpha {config.scatterplot2d_alpha} --coord-fixed {config.coord_fixed}"
+[rules.environment]
+conda = "envs/ggplot.yaml"
+[rules.resources]
+memory = "32000M"
+
+# upstream rule: plot_dimred_clustering (densMAP, n_components=2)
+[[rules]]
+name = "plot_dimred_clustering_densmap"
+input = [
+    "{config.result_path}/unsupervised_analysis/{sample}/densMAP/densMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2_data.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/densMAP/densMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2_axes.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/metadata_clusterings.csv",
+]
+output = ["{config.result_path}/unsupervised_analysis/{sample}/densMAP/plots/densMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2/clustering"]
+description = "densMAP 2D scatter plots colored by clustering results"
+script = "scripts/plot_2d.R --data {input[0]} --axes {input[1]} --metadata {input[2]} --out {output} --size {config.scatterplot2d_size} --alpha {config.scatterplot2d_alpha} --coord-fixed {config.coord_fixed}"
+[rules.environment]
+conda = "envs/ggplot.yaml"
+[rules.resources]
+memory = "32000M"
+
+# upstream rule: plot_pca_diagnostics (variance, pairs, loadings, loadings_lollipop)
+[[rules]]
+name = "plot_pca_diagnostics"
+input = [
+    "{config.result_path}/unsupervised_analysis/{sample}/PCA/PCA_{config.pca_svd_solver}_{config.pca_n_components}_data_small.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/PCA/PCA_{config.pca_svd_solver}_{config.pca_n_components}_var.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/PCA/PCA_{config.pca_svd_solver}_{config.pca_n_components}_axes.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/PCA/PCA_{config.pca_svd_solver}_{config.pca_n_components}_loadings_small.csv",
+    "{config.data_dir}/{sample}_labels.csv",
+]
+output = [
+    "{config.result_path}/unsupervised_analysis/{sample}/PCA/plots/PCA_{config.pca_svd_solver}_{config.pca_n_components}/diagnostics/variance.png",
+    "{config.result_path}/unsupervised_analysis/{sample}/PCA/plots/PCA_{config.pca_svd_solver}_{config.pca_n_components}/diagnostics/pairs.png",
+    "{config.result_path}/unsupervised_analysis/{sample}/PCA/plots/PCA_{config.pca_svd_solver}_{config.pca_n_components}/diagnostics/loadings.png",
+    "{config.result_path}/unsupervised_analysis/{sample}/PCA/plots/PCA_{config.pca_svd_solver}_{config.pca_n_components}/diagnostics/loadings_lollipop.png",
+]
+description = "PCA diagnostics: scree/cumulative variance, pairs, loadings and lollipop plots"
+script = "scripts/plot_pca.R --data {input[0]} --var {input[1]} --axes {input[2]} --loadings {input[3]} --metadata {input[4]} --out-variance {output[0]} --out-pairs {output[1]} --out-loadings {output[2]} --out-lollipop {output[3]} --metadata-of-interest {config.metadata_of_interest} --size {config.scatterplot2d_size} --alpha {config.scatterplot2d_alpha}"
+[rules.environment]
+conda = "envs/ggplot.yaml"
+[rules.resources]
+memory = "8000M"
+
+# upstream rule: plot_umap_diagnostics (UMAP)
+[[rules]]
+name = "plot_umap_diagnostics_umap"
+input = ["{config.result_path}/unsupervised_analysis/{sample}/UMAP/UMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2_object.pickle"]
+output = ["{config.result_path}/unsupervised_analysis/{sample}/UMAP/plots/UMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2/diagnostics/diagnostics.png"]
+description = "UMAP diagnostic visualizations"
+script = "scripts/plot_umap_diagnostics.py --object {input} --out {output}"
+[rules.environment]
+conda = "envs/umap_leiden.yaml"
+
+# upstream rule: plot_umap_diagnostics (densMAP)
+[[rules]]
+name = "plot_umap_diagnostics_densmap"
+input = ["{config.result_path}/unsupervised_analysis/{sample}/densMAP/densMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2_object.pickle"]
+output = ["{config.result_path}/unsupervised_analysis/{sample}/densMAP/plots/densMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2/diagnostics/diagnostics.png"]
+description = "densMAP diagnostic visualizations"
+script = "scripts/plot_umap_diagnostics.py --object {input} --out {output}"
+[rules.environment]
+conda = "envs/umap_leiden.yaml"
+
+# upstream rule: plot_umap_connectivity (UMAP)
+[[rules]]
+name = "plot_umap_connectivity_umap"
+input = ["{config.result_path}/unsupervised_analysis/{sample}/UMAP/UMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2_object.pickle"]
+output = ["{config.result_path}/unsupervised_analysis/{sample}/UMAP/plots/UMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2/diagnostics/connectivity.png"]
+description = "UMAP connectivity plot"
+script = "scripts/plot_umap_connectivity.py --object {input} --out {output}"
+[rules.environment]
+conda = "envs/umap_leiden.yaml"
+
+# upstream rule: plot_umap_connectivity (densMAP)
+[[rules]]
+name = "plot_umap_connectivity_densmap"
+input = ["{config.result_path}/unsupervised_analysis/{sample}/densMAP/densMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2_object.pickle"]
+output = ["{config.result_path}/unsupervised_analysis/{sample}/densMAP/plots/densMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2/diagnostics/connectivity.png"]
+description = "densMAP connectivity plot"
+script = "scripts/plot_umap_connectivity.py --object {input} --out {output}"
+[rules.environment]
+conda = "envs/umap_leiden.yaml"
+
+# upstream rule: plot_dimred_interactive (PCA, 2D)
+[[rules]]
+name = "plot_dimred_interactive_pca_2d"
+input = [
+    "{config.result_path}/unsupervised_analysis/{sample}/PCA/PCA_{config.pca_svd_solver}_{config.pca_n_components}_data_small.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/PCA/PCA_{config.pca_svd_solver}_{config.pca_n_components}_axes.csv",
+    "{config.data_dir}/{sample}_labels.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/metadata_features.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/metadata_clusterings.csv",
+]
+output = ["{config.result_path}/unsupervised_analysis/{sample}/PCA/plots/PCA_{config.pca_svd_solver}_{config.pca_n_components}_2/interactive.html"]
+description = "Interactive PCA scatter plot (2D)"
+script = "scripts/plot_interactive.py --data {input[0]} --metadata {input[2]} --features {input[3]} --clusterings {input[4]} --out {output} --n-components 2 --size {config.scatterplot2d_size} --alpha {config.scatterplot2d_alpha}"
+[rules.environment]
+conda = "envs/plotly.yaml"
+[rules.resources]
+memory = "8000M"
+
+# upstream rule: plot_dimred_interactive (PCA, 3D)
+[[rules]]
+name = "plot_dimred_interactive_pca_3d"
+input = [
+    "{config.result_path}/unsupervised_analysis/{sample}/PCA/PCA_{config.pca_svd_solver}_{config.pca_n_components}_data_small.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/PCA/PCA_{config.pca_svd_solver}_{config.pca_n_components}_axes.csv",
+    "{config.data_dir}/{sample}_labels.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/metadata_features.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/metadata_clusterings.csv",
+]
+output = ["{config.result_path}/unsupervised_analysis/{sample}/PCA/plots/PCA_{config.pca_svd_solver}_{config.pca_n_components}_3/interactive.html"]
+description = "Interactive PCA scatter plot (3D)"
+script = "scripts/plot_interactive.py --data {input[0]} --metadata {input[2]} --features {input[3]} --clusterings {input[4]} --out {output} --n-components 3 --size {config.scatterplot2d_size} --alpha {config.scatterplot2d_alpha}"
+[rules.environment]
+conda = "envs/plotly.yaml"
+[rules.resources]
+memory = "8000M"
+
+# upstream rule: plot_dimred_interactive (UMAP, 2D)
+[[rules]]
+name = "plot_dimred_interactive_umap_2d"
+input = [
+    "{config.result_path}/unsupervised_analysis/{sample}/UMAP/UMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2_data.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/UMAP/UMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2_axes.csv",
+    "{config.data_dir}/{sample}_labels.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/metadata_features.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/metadata_clusterings.csv",
+]
+output = ["{config.result_path}/unsupervised_analysis/{sample}/UMAP/plots/UMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2/interactive.html"]
+description = "Interactive UMAP scatter plot (2D)"
+script = "scripts/plot_interactive.py --data {input[0]} --metadata {input[2]} --features {input[3]} --clusterings {input[4]} --out {output} --n-components 2 --size {config.scatterplot2d_size} --alpha {config.scatterplot2d_alpha}"
+[rules.environment]
+conda = "envs/plotly.yaml"
+[rules.resources]
+memory = "8000M"
+
+# upstream rule: plot_dimred_interactive (UMAP, 3D)
+[[rules]]
+name = "plot_dimred_interactive_umap_3d"
+input = [
+    "{config.result_path}/unsupervised_analysis/{sample}/UMAP/UMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_3_data.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/UMAP/UMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_3_axes.csv",
+    "{config.data_dir}/{sample}_labels.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/metadata_features.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/metadata_clusterings.csv",
+]
+output = ["{config.result_path}/unsupervised_analysis/{sample}/UMAP/plots/UMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_3/interactive.html"]
+description = "Interactive UMAP scatter plot (3D)"
+script = "scripts/plot_interactive.py --data {input[0]} --metadata {input[2]} --features {input[3]} --clusterings {input[4]} --out {output} --n-components 3 --size {config.scatterplot2d_size} --alpha {config.scatterplot2d_alpha}"
+[rules.environment]
+conda = "envs/plotly.yaml"
+[rules.resources]
+memory = "8000M"
+
+# upstream rule: plot_dimred_interactive (densMAP, 2D)
+[[rules]]
+name = "plot_dimred_interactive_densmap_2d"
+input = [
+    "{config.result_path}/unsupervised_analysis/{sample}/densMAP/densMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2_data.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/densMAP/densMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2_axes.csv",
+    "{config.data_dir}/{sample}_labels.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/metadata_features.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/metadata_clusterings.csv",
+]
+output = ["{config.result_path}/unsupervised_analysis/{sample}/densMAP/plots/densMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2/interactive.html"]
+description = "Interactive densMAP scatter plot (2D)"
+script = "scripts/plot_interactive.py --data {input[0]} --metadata {input[2]} --features {input[3]} --clusterings {input[4]} --out {output} --n-components 2 --size {config.scatterplot2d_size} --alpha {config.scatterplot2d_alpha}"
+[rules.environment]
+conda = "envs/plotly.yaml"
+[rules.resources]
+memory = "8000M"
+
+# upstream rule: plot_dimred_interactive (densMAP, 3D)
+[[rules]]
+name = "plot_dimred_interactive_densmap_3d"
+input = [
+    "{config.result_path}/unsupervised_analysis/{sample}/densMAP/densMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_3_data.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/densMAP/densMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_3_axes.csv",
+    "{config.data_dir}/{sample}_labels.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/metadata_features.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/metadata_clusterings.csv",
+]
+output = ["{config.result_path}/unsupervised_analysis/{sample}/densMAP/plots/densMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_3/interactive.html"]
+description = "Interactive densMAP scatter plot (3D)"
+script = "scripts/plot_interactive.py --data {input[0]} --metadata {input[2]} --features {input[3]} --clusterings {input[4]} --out {output} --n-components 3 --size {config.scatterplot2d_size} --alpha {config.scatterplot2d_alpha}"
+[rules.environment]
+conda = "envs/plotly.yaml"
+[rules.resources]
+memory = "8000M"
+
+# upstream rule: plot_heatmap (metric = correlation, default config)
+[[rules]]
+name = "plot_heatmap_correlation"
+input = [
+    "{config.data_dir}/{sample}_data.csv",
+    "{config.data_dir}/{sample}_labels.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/Heatmap/DistanceMatrix_correlation_observations.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/Heatmap/DistanceMatrix_correlation_features.csv",
+]
+output = ["{config.result_path}/unsupervised_analysis/{sample}/Heatmap/plots/Heatmap_correlation_{config.heatmap_hclust_method}.png"]
+description = "Hierarchical clustering heatmap (correlation distance)"
+script = "scripts/plot_heatmap.R --data {input[0]} --metadata {input[1]} --obs-dist {input[2]} --feat-dist {input[3]} --out {output} --metric correlation --hclust-method {config.heatmap_hclust_method} --samples-by-features {config.samples_by_features} --metadata-of-interest {config.metadata_of_interest}"
+[rules.environment]
+conda = "envs/ComplexHeatmap.yaml"
+
+# upstream rule: plot_heatmap (metric = cosine, default config)
+[[rules]]
+name = "plot_heatmap_cosine"
+input = [
+    "{config.data_dir}/{sample}_data.csv",
+    "{config.data_dir}/{sample}_labels.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/Heatmap/DistanceMatrix_cosine_observations.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/Heatmap/DistanceMatrix_cosine_features.csv",
+]
+output = ["{config.result_path}/unsupervised_analysis/{sample}/Heatmap/plots/Heatmap_cosine_{config.heatmap_hclust_method}.png"]
+description = "Hierarchical clustering heatmap (cosine distance)"
+script = "scripts/plot_heatmap.R --data {input[0]} --metadata {input[1]} --obs-dist {input[2]} --feat-dist {input[3]} --out {output} --metric cosine --hclust-method {config.heatmap_hclust_method} --samples-by-features {config.samples_by_features} --metadata-of-interest {config.metadata_of_interest}"
+[rules.environment]
+conda = "envs/ComplexHeatmap.yaml"
+
+# ---------------------------------------------------------------------------
+# CLUSTER VALIDATION (workflow/rules/cluster_validation.smk)
+# ---------------------------------------------------------------------------
+
+# upstream rule: clustree_analysis (content = default)
+[[rules]]
+name = "clustree_analysis_default"
+input = [
+    "{config.result_path}/unsupervised_analysis/{sample}/metadata_clusterings.csv",
+    "{config.data_dir}/{sample}_labels.csv",
+]
+output = ["{config.result_path}/unsupervised_analysis/{sample}/clustree/default.png"]
+description = "Clustree analysis of clusterings (default)"
+script = "scripts/clustree.R --clusterings {input[0]} --metadata {input[1]} --out {output} --content default --count-filter {config.clustree_count_filter} --prop-filter {config.clustree_prop_filter} --layout {config.clustree_layout} --cat-label {config.clustree_categorical_label_option} --num-aggr {config.clustree_numerical_aggregation_option} --custom-metadata {config.metadata_of_interest}"
+[rules.environment]
+conda = "envs/clustree.yaml"
+
+# upstream rule: clustree_analysis (content = custom)
+[[rules]]
+name = "clustree_analysis_custom"
+input = [
+    "{config.result_path}/unsupervised_analysis/{sample}/metadata_clusterings.csv",
+    "{config.data_dir}/{sample}_labels.csv",
+]
+output = ["{config.result_path}/unsupervised_analysis/{sample}/clustree/custom.png"]
+description = "Clustree analysis of clusterings with custom metadata"
+script = "scripts/clustree.R --clusterings {input[0]} --metadata {input[1]} --out {output} --content custom --count-filter {config.clustree_count_filter} --prop-filter {config.clustree_prop_filter} --layout {config.clustree_layout} --cat-label {config.clustree_categorical_label_option} --num-aggr {config.clustree_numerical_aggregation_option} --custom-metadata {config.metadata_of_interest}"
+[rules.environment]
+conda = "envs/clustree.yaml"
+
+# upstream rule: clustree_analysis_metadata (content = metadata)
+[[rules]]
+name = "clustree_analysis_metadata"
+input = [
+    "{config.result_path}/unsupervised_analysis/{sample}/metadata_clusterings.csv",
+    "{config.data_dir}/{sample}_labels.csv",
+]
+output = ["{config.result_path}/unsupervised_analysis/{sample}/clustree/metadata"]
+description = "Clustree analysis highlighting metadata"
+script = "scripts/clustree.R --clusterings {input[0]} --metadata {input[1]} --out {output} --content metadata --count-filter {config.clustree_count_filter} --prop-filter {config.clustree_prop_filter} --layout {config.clustree_layout} --cat-label {config.clustree_categorical_label_option} --num-aggr {config.clustree_numerical_aggregation_option} --custom-metadata {config.metadata_of_interest}"
+[rules.environment]
+conda = "envs/clustree.yaml"
+
+# upstream rule: validation_external (6 indices: AMI, ARI, FMI, Homogeneity, Completeness, V)
+[[rules]]
+name = "validation_external"
+input = [
+    "{config.data_dir}/{sample}_labels.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/metadata_clusterings.csv",
+]
+output = [
+    "{config.result_path}/unsupervised_analysis/{sample}/cluster_validation/external_index_AMI.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/cluster_validation/external_index_ARI.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/cluster_validation/external_index_FMI.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/cluster_validation/external_index_Homogeneity.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/cluster_validation/external_index_Completeness.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/cluster_validation/external_index_V.csv",
+]
+description = "External cluster validation indices (AMI, ARI, FMI, Homogeneity, Completeness, V)"
+script = "scripts/validation_external.py --metadata {input[0]} --clusterings {input[1]} --outputs {output[0]} {output[1]} {output[2]} {output[3]} {output[4]} {output[5]}"
+[rules.environment]
+conda = "envs/umap_leiden.yaml"
+
+# upstream rule: validation_internal (index = Silhouette)
+[[rules]]
+name = "validation_internal_Silhouette"
+input = [
+    "{config.data_dir}/{sample}_labels.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/metadata_clusterings.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/PCA/PCA_{config.pca_svd_solver}_{config.pca_n_components}_data.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/PCA/PCA_{config.pca_svd_solver}_{config.pca_n_components}_var.csv",
+]
+output = ["{config.result_path}/unsupervised_analysis/{sample}/cluster_validation/internal_index_Silhouette.csv"]
+description = "Internal cluster validation (Silhouette)"
+script = "scripts/validation_internal.R --metadata {input[0]} --clusterings {input[1]} --pca {input[2]} --pca-var {input[3]} --out {output} --internal-index Silhouette --sample-proportion {config.sample_proportion} --metadata-of-interest {config.metadata_of_interest}"
+[rules.environment]
+conda = "envs/clusterCrit.yaml"
+[rules.resources]
+memory = "32000M"
+
+# upstream rule: validation_internal (index = Calinski_Harabasz)
+[[rules]]
+name = "validation_internal_Calinski_Harabasz"
+input = [
+    "{config.data_dir}/{sample}_labels.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/metadata_clusterings.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/PCA/PCA_{config.pca_svd_solver}_{config.pca_n_components}_data.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/PCA/PCA_{config.pca_svd_solver}_{config.pca_n_components}_var.csv",
+]
+output = ["{config.result_path}/unsupervised_analysis/{sample}/cluster_validation/internal_index_Calinski_Harabasz.csv"]
+description = "Internal cluster validation (Calinski-Harabasz)"
+script = "scripts/validation_internal.R --metadata {input[0]} --clusterings {input[1]} --pca {input[2]} --pca-var {input[3]} --out {output} --internal-index Calinski_Harabasz --sample-proportion {config.sample_proportion} --metadata-of-interest {config.metadata_of_interest}"
+[rules.environment]
+conda = "envs/clusterCrit.yaml"
+[rules.resources]
+memory = "32000M"
+
+# upstream rule: validation_internal (index = Dunn)
+[[rules]]
+name = "validation_internal_Dunn"
+input = [
+    "{config.data_dir}/{sample}_labels.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/metadata_clusterings.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/PCA/PCA_{config.pca_svd_solver}_{config.pca_n_components}_data.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/PCA/PCA_{config.pca_svd_solver}_{config.pca_n_components}_var.csv",
+]
+output = ["{config.result_path}/unsupervised_analysis/{sample}/cluster_validation/internal_index_Dunn.csv"]
+description = "Internal cluster validation (Dunn)"
+script = "scripts/validation_internal.R --metadata {input[0]} --clusterings {input[1]} --pca {input[2]} --pca-var {input[3]} --out {output} --internal-index Dunn --sample-proportion {config.sample_proportion} --metadata-of-interest {config.metadata_of_interest}"
+[rules.environment]
+conda = "envs/clusterCrit.yaml"
+[rules.resources]
+memory = "32000M"
+
+# upstream rule: validation_internal (index = C_index)
+[[rules]]
+name = "validation_internal_C_index"
+input = [
+    "{config.data_dir}/{sample}_labels.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/metadata_clusterings.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/PCA/PCA_{config.pca_svd_solver}_{config.pca_n_components}_data.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/PCA/PCA_{config.pca_svd_solver}_{config.pca_n_components}_var.csv",
+]
+output = ["{config.result_path}/unsupervised_analysis/{sample}/cluster_validation/internal_index_C_index.csv"]
+description = "Internal cluster validation (C-index)"
+script = "scripts/validation_internal.R --metadata {input[0]} --clusterings {input[1]} --pca {input[2]} --pca-var {input[3]} --out {output} --internal-index C_index --sample-proportion {config.sample_proportion} --metadata-of-interest {config.metadata_of_interest}"
+[rules.environment]
+conda = "envs/clusterCrit.yaml"
+[rules.resources]
+memory = "32000M"
+
+# upstream rule: validation_internal (index = Davies_Bouldin)
+[[rules]]
+name = "validation_internal_Davies_Bouldin"
+input = [
+    "{config.data_dir}/{sample}_labels.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/metadata_clusterings.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/PCA/PCA_{config.pca_svd_solver}_{config.pca_n_components}_data.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/PCA/PCA_{config.pca_svd_solver}_{config.pca_n_components}_var.csv",
+]
+output = ["{config.result_path}/unsupervised_analysis/{sample}/cluster_validation/internal_index_Davies_Bouldin.csv"]
+description = "Internal cluster validation (Davies-Bouldin)"
+script = "scripts/validation_internal.R --metadata {input[0]} --clusterings {input[1]} --pca {input[2]} --pca-var {input[3]} --out {output} --internal-index Davies_Bouldin --sample-proportion {config.sample_proportion} --metadata-of-interest {config.metadata_of_interest}"
+[rules.environment]
+conda = "envs/clusterCrit.yaml"
+[rules.resources]
+memory = "32000M"
+
+# upstream rule: validation_internal (index = BIC)
+[[rules]]
+name = "validation_internal_BIC"
+input = [
+    "{config.data_dir}/{sample}_labels.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/metadata_clusterings.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/PCA/PCA_{config.pca_svd_solver}_{config.pca_n_components}_data.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/PCA/PCA_{config.pca_svd_solver}_{config.pca_n_components}_var.csv",
+]
+output = ["{config.result_path}/unsupervised_analysis/{sample}/cluster_validation/internal_index_BIC.csv"]
+description = "Internal cluster validation (BIC)"
+script = "scripts/validation_internal.R --metadata {input[0]} --clusterings {input[1]} --pca {input[2]} --pca-var {input[3]} --out {output} --internal-index BIC --sample-proportion {config.sample_proportion} --metadata-of-interest {config.metadata_of_interest}"
+[rules.environment]
+conda = "envs/clusterCrit.yaml"
+[rules.resources]
+memory = "32000M"
+
+# upstream rule: aggregate_rank_internal (TOPSIS MCDM ranking)
+[[rules]]
+name = "aggregate_rank_internal"
+input = []
+expand_inputs = [
+    { pattern = "{config.result_path}/unsupervised_analysis/{sample}/cluster_validation/internal_index_Silhouette.csv", variables = { sample = "config.samples_list" } },
+    { pattern = "{config.result_path}/unsupervised_analysis/{sample}/cluster_validation/internal_index_Calinski_Harabasz.csv", variables = { sample = "config.samples_list" } },
+    { pattern = "{config.result_path}/unsupervised_analysis/{sample}/cluster_validation/internal_index_Dunn.csv", variables = { sample = "config.samples_list" } },
+    { pattern = "{config.result_path}/unsupervised_analysis/{sample}/cluster_validation/internal_index_C_index.csv", variables = { sample = "config.samples_list" } },
+    { pattern = "{config.result_path}/unsupervised_analysis/{sample}/cluster_validation/internal_index_Davies_Bouldin.csv", variables = { sample = "config.samples_list" } },
+    { pattern = "{config.result_path}/unsupervised_analysis/{sample}/cluster_validation/internal_index_BIC.csv", variables = { sample = "config.samples_list" } },
+]
+output = ["{config.result_path}/unsupervised_analysis/{sample}/cluster_validation/internal_indices_ranked.csv"]
+description = "Rank internal cluster indices with TOPSIS (MCDM)"
+script = "scripts/mcdm_topsis.py --inputs {input} --out {output}"
+[rules.environment]
+conda = "envs/pymcdm.yaml"
+
+# upstream rule: plot_indices (type = external)
+[[rules]]
+name = "plot_indices_external"
+input = [
+    "{config.result_path}/unsupervised_analysis/{sample}/cluster_validation/external_index_AMI.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/cluster_validation/external_index_ARI.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/cluster_validation/external_index_FMI.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/cluster_validation/external_index_Homogeneity.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/cluster_validation/external_index_Completeness.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/cluster_validation/external_index_V.csv",
+]
+output = ["{config.result_path}/unsupervised_analysis/{sample}/cluster_validation/plots/external"]
+description = "Heatmaps of external cluster indices"
+script = "scripts/plot_indices.R --type external --paths {input} --out {output}"
+[rules.environment]
+conda = "envs/ggplot.yaml"
+
+# upstream rule: plot_indices (type = internal)
+[[rules]]
+name = "plot_indices_internal"
+input = ["{config.result_path}/unsupervised_analysis/{sample}/cluster_validation/internal_indices_ranked.csv"]
+output = ["{config.result_path}/unsupervised_analysis/{sample}/cluster_validation/plots/internal"]
+description = "Heatmap of ranked internal cluster indices"
+script = "scripts/plot_indices.R --type internal --paths {input} --out {output}"
+[rules.environment]
+conda = "envs/ggplot.yaml"
+
+# ---------------------------------------------------------------------------
+# EXPORT (workflow/rules/envs_export.smk: annot_export; env_export and
+# config_export are not ported — see README fidelity table)
+# ---------------------------------------------------------------------------
+
+# upstream rule: annot_export (annotation copy for reproducibility)
+[[rules]]
+name = "annot_export"
+input = ["config/annotation.csv"]
+output = ["{config.result_path}/unsupervised_analysis/configs/{config.project_name}_annot.csv"]
+description = "Copy the annotation file for documentation and reproducibility"
+shell = "cp {input} {output}"
