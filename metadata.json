@@ -1,7 +1,9 @@
 {
   "name": "oxo-flow-unsupervised",
-  "title": "epigen unsupervised_analysis (port)",
-  "engine": "oxo-flow",
+  "title": "Unsupervised analysis of omics matrices: PCA, UMAP, clustering and validation",
+  "origin": "port",
+  "rating": "verified",
+  "engine": "snakemake",
   "source": {
     "repo": "epigen/unsupervised_analysis",
     "url": "https://github.com/epigen/unsupervised_analysis",
@@ -22,7 +24,6 @@
     "heatmap",
     "snakemake"
   ],
-  "description": "oxo-flow port of the epigen/unsupervised_analysis workflow (default-parameter main path): PCA, UMAP and densMAP embeddings (2D/3D), distance matrices, hierarchical clustering heatmaps, Leiden clustering (RBConfiguration and Modularity partitions), clustree analysis, external and internal cluster validation with TOPSIS ranking, and static/interactive visualizations for a single omics matrix sample.",
   "scope": [
     "pca",
     "umap_graph",
@@ -120,7 +121,17 @@
     "r-clustercrit",
     "pymcdm"
   ],
-  "status": "ready",
+  "description": "Unsupervised analysis of omics matrices: PCA, UMAP and densMAP embeddings (2D/3D), distance matrices, hierarchical clustering heatmaps, Leiden clustering across partition types and resolutions, clustree analysis, external and internal cluster validation with TOPSIS ranking, and static and interactive visualizations. A verified port of the default-parameter path of epigen/unsupervised_analysis v4.0.2 (Snakemake); all 52 rules and tool versions are pinned to the upstream release.",
+  "installation": {
+    "engine": "oxo-flow >= 0.11.0",
+    "toolchain": "conda envs — pinned versions (7 environments under envs/, created by conda/mamba)",
+    "requirements": [
+      "per-sample omics matrix CSV and optional labels CSV ({config.data_dir}/{sample}_data.csv / _labels.csv), registered in config/annotation.csv; no reference genomes or index files needed (default fixtures: sklearn digits, 1797 samples x 64 features)",
+      "compute: up to 2 CPUs / 32 GB RAM per rule (defaults threads=2, mem_mb=32000; 7 plotting rules use 8 GB)",
+      "conda or mamba installed to build the 7 pinned environments on first run"
+    ]
+  },
   "repo_url": "https://github.com/oxo-flow-community/oxo-flow-unsupervised",
+  "license": "Apache-2.0",
   "upstream_license": "MIT"
 }

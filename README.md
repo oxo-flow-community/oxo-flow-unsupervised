@@ -1,24 +1,68 @@
-# oxo-flow-unsupervised
+# oxo-flow-unsupervised — Unsupervised analysis of omics matrices: PCA, UMAP, clustering and validation
 
 [![CI](https://github.com/oxo-flow-community/oxo-flow-unsupervised/actions/workflows/ci.yml/badge.svg)](https://github.com/oxo-flow-community/oxo-flow-unsupervised/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
-Unsupervised analyses of omics matrices: PCA, UMAP/densMAP embeddings,
-hierarchical clustering heatmaps, Leiden clustering, clustree analysis,
-external/internal cluster validation with TOPSIS ranking, and static and
-interactive visualizations. Port of the default execution path of
-[epigen/unsupervised_analysis](https://github.com/epigen/unsupervised_analysis)
-(Snakemake).
+> ★ Verified · ⇄ Official port of [`epigen/unsupervised_analysis`](https://github.com/epigen/unsupervised_analysis) @ `v4.0.2` — same tools, same versions, same commands. Part of the [oxo-flow-community catalog](https://oxo-flow-community.github.io/).
 
-## Source
+Point this workflow at one or more omics matrices (each with an optional
+metadata table) and it runs the full unsupervised-analysis path: PCA and
+UMAP/densMAP embeddings (2D and 3D), distance matrices, hierarchical
+clustering heatmaps, Leiden clustering across partition types and
+resolutions, clustree analysis, external and internal cluster validation
+with TOPSIS ranking, and static plus interactive visualizations. Every
+result is written below `results/unsupervised_analysis/{sample}/` for
+direct inspection or downstream use.
 
-Ported from **[epigen/unsupervised_analysis](https://github.com/epigen/unsupervised_analysis)**,
-version `v4.0.2` (MIT), commit
-`4da72e9e8792ecdfa474a67c17b3f9b564eb462e`. This port is maintained
-independently and **may lag the upstream** — check the fidelity table below
-for the exact ported state.
+## Installation
 
-## Quick start
+### 1. Install oxo-flow
+
+This workflow requires oxo-flow >= 0.11.0.
+
+Recommended — release binary (Linux x86_64):
+
+```bash
+curl -fL -o oxo-flow.tar.gz https://github.com/Traitome/oxo-flow/releases/download/v0.11.0/oxo-flow-v0.11.0-x86_64-unknown-linux-gnu.tar.gz
+tar xzf oxo-flow.tar.gz && sudo mv oxo-flow /usr/local/bin/
+```
+
+Alternatively via conda:
+
+```bash
+conda install -c bioconda oxo-flow-cli
+```
+
+Note that the conda package may lag behind releases; binaries for other
+platforms are on the [releases page](https://github.com/Traitome/oxo-flow/releases).
+
+### 2. Get this workflow
+
+```bash
+git clone https://github.com/oxo-flow-community/oxo-flow-unsupervised.git
+cd oxo-flow-unsupervised
+```
+
+### 3. Requirements
+
+- **Reference data**: no genome, index, or reference files are needed — the
+  inputs are the omics matrices themselves. For each sample provide a matrix
+  CSV (`{config.data_dir}/{sample}_data.csv`) and, optionally, a labels CSV
+  (`{config.data_dir}/{sample}_labels.csv`), and register the sample in
+  `config/annotation.csv`. Default inputs are real sklearn `digits` data
+  (1797 samples x 64 features) committed under `test/fixtures/`, so the
+  workflow runs out of the box.
+- **Compute**: up to 2 CPUs and 32 GB RAM per rule (defaults `threads = 2`,
+  `mem_mb = 32000`); 7 plotting rules use 8 GB. Lower limits are fine for the
+  bundled digits dataset.
+- **Tools**: conda environments with pinned versions. 49 of the 52 rules pin
+  one of the 7 environments committed under `envs/` (e.g. `scikit-learn=1.3.0`,
+  `leidenalg=0.10.1`, `r-ggplot2=3.3.6`); oxo-flow creates these with
+  conda/mamba on first run, so a conda (or mamba/micromamba) installation is
+  required. The remaining 3 rules need no environment (two pure-Python
+  aggregation scripts and one file copy).
+
+## Usage
 
 ```bash
 # validate, lint, and dry-run the workflow
@@ -34,7 +78,7 @@ maps each sample to its matrix and metadata file; the upstream annotation
 columns `data`/`metadata` map to the port convention
 `{config.data_dir}/{sample}_data.csv` and `{config.data_dir}/{sample}_labels.csv`.
 
-## Configuration
+### Configuration
 
 All upstream defaults are set in `[config]` in `main.oxoflow` and can be
 overridden with `oxo-flow run main.oxoflow -c key=value` (or a config file):
@@ -55,7 +99,7 @@ overridden with `oxo-flow run main.oxoflow -c key=value` (or a config file):
 | `features_to_plot` | `[]` | `features_to_plot` |
 | `coord_fixed` / `scatterplot2d_size` / `scatterplot2d_alpha` | `0` / `1` / `1` | `coord_fixed` / `scatterplot2d.size` / `scatterplot2d.alpha` |
 
-## Outputs
+### Outputs
 
 All outputs are written below `results/unsupervised_analysis/{sample}/`:
 
@@ -69,6 +113,14 @@ All outputs are written below `results/unsupervised_analysis/{sample}/`:
 | `cluster_validation/` | external/internal index CSVs, TOPSIS-ranked internal indices, index heatmaps |
 | `metadata_features.csv`, `metadata_clusterings.csv` | aggregated per-sample tables |
 | `configs/` | exported annotation file |
+
+## Source
+
+Ported from **[epigen/unsupervised_analysis](https://github.com/epigen/unsupervised_analysis)**
+(Snakemake), version `v4.0.2`, commit
+`4da72e9e8792ecdfa474a67c17b3f9b564eb462e`, upstream license MIT. Created
+2026-08-15; this workflow may lag behind upstream releases. See `NOTICE.md`
+for the full upstream attribution and license.
 
 ## Fidelity
 
@@ -127,6 +179,15 @@ of the default-parameter path is executed, none are stubbed):
    interactive plots 8000M, internal validation 2x).
 6. **Environment**: each rule pins the same conda environment as upstream
    (7 environments, copied verbatim from `workflow/envs/`).
+
+## Test
+
+```bash
+bash test/run.sh
+```
+
+Runs `oxo-flow validate`, `lint`, and `dry-run` (plus a debug check that no
+literal wildcards survive expansion) and must exit 0.
 
 ## License
 
