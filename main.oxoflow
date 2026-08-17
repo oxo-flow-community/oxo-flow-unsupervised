@@ -221,7 +221,7 @@ name = "prep_feature_plot"
 input = ["{config.data_dir}/{sample}_data.csv"]
 output = ["{config.result_path}/unsupervised_analysis/{sample}/metadata_features.csv"]
 description = "Subset data features for use as plot metadata"
-script = "scripts/subset_data.py --data {input[0]} --out {output} --samples-by-features {config.samples_by_features} --features {config.features_to_plot}"
+script = "scripts/subset_data.py --data \"{input[0]}\" --out \"{output}\" --samples-by-features {config.samples_by_features} --features \"{config.features_to_plot}\""
 [rules.environment]
 conda = "envs/umap_leiden.yaml"
 
