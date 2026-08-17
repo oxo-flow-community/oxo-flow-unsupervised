@@ -23,3 +23,21 @@ get_arg_list <- function(args, flag) {
   }
   unlist(strsplit(val, ",", fixed = TRUE))
 }
+
+# get all values after a --flag until the next --flag (multi-value args;
+# the shell passes space-joined lists as separate argv entries)
+get_arg_multi <- function(args, flag) {
+  idx <- which(args == flag)
+  if (length(idx) == 0) {
+    return(character(0))
+  }
+  vals <- args[(idx[1] + 1):length(args)]
+  if (length(vals) == 0) {
+    return(character(0))
+  }
+  is_flag <- grepl("^--", vals)
+  if (any(is_flag)) {
+    vals <- vals[seq_len(which(is_flag)[1] - 1)]
+  }
+  vals
+}

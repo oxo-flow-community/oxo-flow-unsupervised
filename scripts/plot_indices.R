@@ -14,7 +14,7 @@ args <- commandArgs(trailingOnly = TRUE)
 ### configurations
 
 # input
-index_paths <- strsplit(get_arg(args, "--paths"), " ", fixed = TRUE)[[1]]
+index_paths <- get_arg_multi(args, "--paths")
 
 # output
 plot_path <- get_arg(args, "--out")
