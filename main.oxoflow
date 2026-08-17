@@ -319,6 +319,8 @@ expand_inputs = [
 output = ["{config.result_path}/unsupervised_analysis/{sample}/Leiden/Leiden_clusterings.csv"]
 description = "Aggregate per-method clustering results"
 script = "scripts/aggregate_clustering.py --inputs {input} --out {output}"
+[rules.environment]
+conda = "envs/plotly.yaml"
 
 # upstream rule: aggregate_all_clustering_results (across methods; default
 # path: Leiden only)
@@ -331,6 +333,8 @@ expand_inputs = [
 output = ["{config.result_path}/unsupervised_analysis/{sample}/metadata_clusterings.csv"]
 description = "Aggregate clustering results across methods"
 script = "scripts/aggregate_all_clustering.py --inputs {input} --out {output}"
+[rules.environment]
+conda = "envs/plotly.yaml"
 
 # ---------------------------------------------------------------------------
 # VISUALIZATION (workflow/rules/visualization.smk)
