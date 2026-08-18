@@ -221,7 +221,7 @@ name = "prep_feature_plot"
 input = ["{config.data_dir}/{sample}_data.csv"]
 output = ["{config.result_path}/unsupervised_analysis/{sample}/metadata_features.csv"]
 description = "Subset data features for use as plot metadata"
-script = "scripts/subset_data.py --data {input[0]} --out {output} --samples-by-features {config.samples_by_features} --features {config.features_to_plot}"
+script = "scripts/subset_data.py --data \"{input[0]}\" --out \"{output}\" --samples-by-features {config.samples_by_features} --features \"{config.features_to_plot}\""
 [rules.environment]
 conda = "envs/umap_leiden.yaml"
 
@@ -319,6 +319,8 @@ expand_inputs = [
 output = ["{config.result_path}/unsupervised_analysis/{sample}/Leiden/Leiden_clusterings.csv"]
 description = "Aggregate per-method clustering results"
 script = "scripts/aggregate_clustering.py --inputs {input} --out {output}"
+[rules.environment]
+conda = "envs/plotly.yaml"
 
 # upstream rule: aggregate_all_clustering_results (across methods; default
 # path: Leiden only)
@@ -331,6 +333,8 @@ expand_inputs = [
 output = ["{config.result_path}/unsupervised_analysis/{sample}/metadata_clusterings.csv"]
 description = "Aggregate clustering results across methods"
 script = "scripts/aggregate_all_clustering.py --inputs {input} --out {output}"
+[rules.environment]
+conda = "envs/plotly.yaml"
 
 # ---------------------------------------------------------------------------
 # VISUALIZATION (workflow/rules/visualization.smk)
