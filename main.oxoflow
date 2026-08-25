@@ -38,6 +38,11 @@ sample_proportion = 1
 # METADATA
 metadata_of_interest = ["target"]
 features_to_plot = []
+# FEATURE PLOTS: upstream runs plot_dimred_features only when
+# len(features_to_plot) > 0; the oxo-flow `when` evaluator compares
+# scalars, not arrays, so this boolean switch carries the gate (set it to
+# true together with a non-empty features_to_plot)
+plot_dimred_features = false
 # PCA (upstream pca: svd_solver, n_components)
 pca_svd_solver = "auto"
 pca_n_components = 0.9
@@ -339,6 +344,43 @@ conda = "envs/plotly.yaml"
 # ---------------------------------------------------------------------------
 # VISUALIZATION (workflow/rules/visualization.smk)
 # ---------------------------------------------------------------------------
+
+# upstream rule: plot_dimred_features (method = PCA, 2D) — per-feature
+# scatter plots. Upstream gates the content on len(features_to_plot) > 0
+# (default [] -> rule produces no output); the port carries the gate on
+# config.plot_dimred_features (see [config]).
+[[rules]]
+name = "plot_dimred_features_pca"
+when = "config.plot_dimred_features"
+input = [
+    "{config.result_path}/unsupervised_analysis/{sample}/PCA/PCA_{config.pca_svd_solver}_{config.pca_n_components}_data_small.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/PCA/PCA_{config.pca_svd_solver}_{config.pca_n_components}_axes.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/metadata_features.csv",
+]
+output = ["{config.result_path}/unsupervised_analysis/{sample}/PCA/plots/PCA_{config.pca_svd_solver}_{config.pca_n_components}_2/features"]
+description = "PCA 2D scatter plots of per-feature values (features_to_plot)"
+script = "scripts/plot_2d.R --data {input[0]} --axes {input[1]} --metadata {input[2]} --out {output} --size {config.scatterplot2d_size} --alpha {config.scatterplot2d_alpha} --coord-fixed {config.coord_fixed}"
+[rules.environment]
+conda = "envs/ggplot.yaml"
+[rules.resources]
+memory = "32000M"
+
+# upstream rule: plot_dimred_features (method = UMAP, 2D)
+[[rules]]
+name = "plot_dimred_features_umap"
+when = "config.plot_dimred_features"
+input = [
+    "{config.result_path}/unsupervised_analysis/{sample}/UMAP/UMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2_data.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/UMAP/UMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2_axes.csv",
+    "{config.result_path}/unsupervised_analysis/{sample}/metadata_features.csv",
+]
+output = ["{config.result_path}/unsupervised_analysis/{sample}/UMAP/plots/UMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2/features"]
+description = "UMAP 2D scatter plots of per-feature values (features_to_plot)"
+script = "scripts/plot_2d.R --data {input[0]} --axes {input[1]} --metadata {input[2]} --out {output} --size {config.scatterplot2d_size} --alpha {config.scatterplot2d_alpha} --coord-fixed {config.coord_fixed}"
+[rules.environment]
+conda = "envs/ggplot.yaml"
+[rules.resources]
+memory = "32000M"
 
 # upstream rule: plot_dimred_metadata (PCA, n_components=2)
 [[rules]]
@@ -848,9 +890,85 @@ script = "scripts/plot_indices.R --type internal --paths {input} --out {output}"
 conda = "envs/ggplot.yaml"
 
 # ---------------------------------------------------------------------------
-# EXPORT (workflow/rules/envs_export.smk: annot_export; env_export and
-# config_export are not ported — see README fidelity table)
+# EXPORT (workflow/rules/envs_export.smk: env_export, annot_export;
+# config_export not ported — see README fidelity table)
 # ---------------------------------------------------------------------------
+
+# upstream rule: env_export — snapshot of the resolved conda environment
+# for reproducibility. oxo-flow runs every rule inside its pinned
+# environment via `conda run`, so CONDA_PREFIX points at the ANALYSIS
+# environment and `conda env export -p "$CONDA_PREFIX"` captures exactly
+# that environment (not the host one); `mamba env export` is the fallback
+# on mamba-only hosts.
+[[rules]]
+name = "env_export_umap_leiden"
+output = ["{config.result_path}/unsupervised_analysis/envs/umap_leiden.yaml"]
+description = "Snapshot the resolved umap_leiden conda environment"
+shell = "conda env export -p \"$CONDA_PREFIX\" > {output} || mamba env export -p \"$CONDA_PREFIX\" > {output}"
+[rules.environment]
+conda = "envs/umap_leiden.yaml"
+[rules.resources]
+memory = "1000M"
+
+[[rules]]
+name = "env_export_clusterCrit"
+output = ["{config.result_path}/unsupervised_analysis/envs/clusterCrit.yaml"]
+description = "Snapshot the resolved clusterCrit conda environment"
+shell = "conda env export -p \"$CONDA_PREFIX\" > {output} || mamba env export -p \"$CONDA_PREFIX\" > {output}"
+[rules.environment]
+conda = "envs/clusterCrit.yaml"
+[rules.resources]
+memory = "1000M"
+
+[[rules]]
+name = "env_export_clustree"
+output = ["{config.result_path}/unsupervised_analysis/envs/clustree.yaml"]
+description = "Snapshot the resolved clustree conda environment"
+shell = "conda env export -p \"$CONDA_PREFIX\" > {output} || mamba env export -p \"$CONDA_PREFIX\" > {output}"
+[rules.environment]
+conda = "envs/clustree.yaml"
+[rules.resources]
+memory = "1000M"
+
+[[rules]]
+name = "env_export_ComplexHeatmap"
+output = ["{config.result_path}/unsupervised_analysis/envs/ComplexHeatmap.yaml"]
+description = "Snapshot the resolved ComplexHeatmap conda environment"
+shell = "conda env export -p \"$CONDA_PREFIX\" > {output} || mamba env export -p \"$CONDA_PREFIX\" > {output}"
+[rules.environment]
+conda = "envs/ComplexHeatmap.yaml"
+[rules.resources]
+memory = "1000M"
+
+[[rules]]
+name = "env_export_ggplot"
+output = ["{config.result_path}/unsupervised_analysis/envs/ggplot.yaml"]
+description = "Snapshot the resolved ggplot conda environment"
+shell = "conda env export -p \"$CONDA_PREFIX\" > {output} || mamba env export -p \"$CONDA_PREFIX\" > {output}"
+[rules.environment]
+conda = "envs/ggplot.yaml"
+[rules.resources]
+memory = "1000M"
+
+[[rules]]
+name = "env_export_plotly"
+output = ["{config.result_path}/unsupervised_analysis/envs/plotly.yaml"]
+description = "Snapshot the resolved plotly conda environment"
+shell = "conda env export -p \"$CONDA_PREFIX\" > {output} || mamba env export -p \"$CONDA_PREFIX\" > {output}"
+[rules.environment]
+conda = "envs/plotly.yaml"
+[rules.resources]
+memory = "1000M"
+
+[[rules]]
+name = "env_export_pymcdm"
+output = ["{config.result_path}/unsupervised_analysis/envs/pymcdm.yaml"]
+description = "Snapshot the resolved pymcdm conda environment"
+shell = "conda env export -p \"$CONDA_PREFIX\" > {output} || mamba env export -p \"$CONDA_PREFIX\" > {output}"
+[rules.environment]
+conda = "envs/pymcdm.yaml"
+[rules.resources]
+memory = "1000M"
 
 # upstream rule: annot_export (annotation copy for reproducibility)
 [[rules]]

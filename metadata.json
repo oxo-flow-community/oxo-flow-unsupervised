@@ -36,6 +36,8 @@
     "distance_matrix_features_correlation",
     "distance_matrix_features_cosine",
     "prep_feature_plot",
+    "plot_dimred_features_pca",
+    "plot_dimred_features_umap",
     "leiden_RBConfigurationVertexPartition_0p5",
     "leiden_RBConfigurationVertexPartition_1",
     "leiden_RBConfigurationVertexPartition_1p5",
@@ -76,15 +78,20 @@
     "aggregate_rank_internal",
     "plot_indices_external",
     "plot_indices_internal",
-    "annot_export"
+    "annot_export",
+    "env_export_umap_leiden",
+    "env_export_clusterCrit",
+    "env_export_clustree",
+    "env_export_ComplexHeatmap",
+    "env_export_ggplot",
+    "env_export_plotly",
+    "env_export_pymcdm"
   ],
   "excluded": [
-    "env_export (7 rules) — runs `conda env export` inside the rule and requires a runtime conda installation; oxo-flow rules execute in one pinned environment, so the exported result would be the host environment, not the analysis environment. The exact pins are committed under envs/ instead.",
-    "config_export — dumps the in-memory Snakemake config object via a run: block; the equivalent oxo-flow [config] is documented in main.oxoflow and this README.",
-    "plot_dimred_features — upstream default config `features_to_plot: []` means the rule has no output on the default path (fan-out over a per-feature wildcard); skipped with the upstream default.",
-    "report/ generation — Snakemake `report(...)` wrapper metadata (captions, categories, labels) has no oxo-flow counterpart; rule outputs are identical, only the report book is not produced."
+    "config_export — dumps the in-memory Snakemake config object via a run: block; the equivalent oxo-flow [config] table is committed in main.oxoflow and the effective config (after CLI overrides) is introspectable via `oxo-flow config show` / `oxo-flow config get`; a placeholder-enumerated dump rule would duplicate [config] and drift when keys change.",
+    "report/ generation — Snakemake `report(...)` wrapper metadata (captions, categories, labels) has no oxo-flow counterpart; all underlying rule outputs are produced, and `oxo-flow report` generates an execution report from the checkpoint (rule status/timings), not the Snakemake artifact-catalog book."
   ],
-  "rule_count": 52,
+  "rule_count": 61,
   "tools": [
     "igraph",
     "leidenalg",
@@ -121,7 +128,7 @@
     "r-clustercrit",
     "pymcdm"
   ],
-  "description": "Unsupervised analysis of omics matrices: PCA, UMAP and densMAP embeddings (2D/3D), distance matrices, hierarchical clustering heatmaps, Leiden clustering across partition types and resolutions, clustree analysis, external and internal cluster validation with TOPSIS ranking, and static and interactive visualizations. A verified port of the default-parameter path of epigen/unsupervised_analysis v4.0.2 (Snakemake); all 52 rules and tool versions are pinned to the upstream release.",
+  "description": "Unsupervised analysis of omics matrices: PCA, UMAP and densMAP embeddings (2D/3D), distance matrices, hierarchical clustering heatmaps, Leiden clustering across partition types and resolutions, clustree analysis, external and internal cluster validation with TOPSIS ranking, static and interactive visualizations, per-feature dimred scatter plots (when-gated), and resolved-environment snapshots. A verified port of the default-parameter path of epigen/unsupervised_analysis v4.0.2 (Snakemake); all 61 rules and tool versions are pinned to the upstream release.",
   "installation": {
     "engine": "oxo-flow >= 0.12.0",
     "toolchain": "conda envs — pinned versions (7 environments under envs/, created by conda/mamba)",
