@@ -55,7 +55,7 @@ cd oxo-flow-unsupervised
 - **Compute**: up to 2 CPUs and 32 GB RAM per rule (defaults `threads = 2`,
   `mem_mb = 32000`); 7 plotting rules use 8 GB. Lower limits are fine for the
   bundled digits dataset.
-- **Tools**: conda environments with pinned versions. 49 of the 52 rules pin
+- **Tools**: conda environments with pinned versions. 58 of the 61 rules pin
   one of the 7 environments committed under `envs/` (e.g. `scikit-learn=1.3.0`,
   `leidenalg=0.10.1`, `r-ggplot2=3.3.6`); oxo-flow creates these with
   conda/mamba on first run, so a conda (or mamba/micromamba) installation is
@@ -68,7 +68,7 @@ cd oxo-flow-unsupervised
 # validate, lint, and dry-run the workflow
 ./test/run.sh
 
-# run everything (all 52 rules for sample "digits")
+# run everything (all 61 rules for sample "digits")
 oxo-flow run main.oxoflow
 ```
 
@@ -97,6 +97,7 @@ overridden with `oxo-flow run main.oxoflow -c key=value` (or a config file):
 | `sample_proportion` | `1` | `sample_proportion` |
 | `metadata_of_interest` | `["target"]` | `metadata_of_interest` |
 | `features_to_plot` | `[]` | `features_to_plot` |
+| `plot_dimred_features` | `false` | port switch: upstream gate `len(features_to_plot) > 0` (see porting note 7) |
 | `coord_fixed` / `scatterplot2d_size` / `scatterplot2d_alpha` | `0` / `1` / `1` | `coord_fixed` / `scatterplot2d.size` / `scatterplot2d.alpha` |
 
 ### Outputs
@@ -113,6 +114,7 @@ All outputs are written below `results/unsupervised_analysis/{sample}/`:
 | `cluster_validation/` | external/internal index CSVs, TOPSIS-ranked internal indices, index heatmaps |
 | `metadata_features.csv`, `metadata_clusterings.csv` | aggregated per-sample tables |
 | `configs/` | exported annotation file |
+| `envs/` | resolved conda environment snapshots (`conda env export` per env) |
 
 ## Source
 
@@ -124,7 +126,7 @@ for the full upstream attribution and license.
 
 ## Fidelity
 
-Upstream rules and how each is ported (52 ported rules; every analysis step
+Upstream rules and how each is ported (61 ported rules; every analysis step
 of the default-parameter path is executed, none are stubbed):
 
 | Upstream rule | Port | Notes |
@@ -138,6 +140,7 @@ of the default-parameter path is executed, none are stubbed):
 | `leiden_cluster` | `leiden_RBConfigurationVertexPartition_{0.5,1,1.5,2,4}`, `leiden_ModularityVertexPartition_NA` (6) | partition_types x resolutions fan-out becomes explicit rules; graph always taken from the precomputed UMAP knn-graph |
 | `aggregate_clustering_results` | `aggregate_clustering_results` | upstream `run:` block ported to `scripts/aggregate_clustering.py` (input[0] metadata unused upstream, mirrored) |
 | `aggregate_all_clustering_results` | `aggregate_all_clustering_results` | `run:` block ported to `scripts/aggregate_all_clustering.py` |
+| `plot_dimred_features` | `plot_dimred_features_{pca,umap}` (2) | method fan-out (upstream appends "features" content only for PCA and UMAP); gated on `config.plot_dimred_features` — see porting note 7 |
 | `plot_dimred_metadata` | `plot_dimred_metadata_{pca,umap,densmap}` (3) | method fan-out; 2D only (upstream default n_components 2) |
 | `plot_dimred_clustering` | `plot_dimred_clustering_{pca,umap,densmap}` (3) | same |
 | `plot_pca_diagnostics` | `plot_pca_diagnostics` | variance/pairs/loadings/lollipop PNGs, mem 8000M |
@@ -152,10 +155,9 @@ of the default-parameter path is executed, none are stubbed):
 | `aggregate_rank_internal` | `aggregate_rank_internal` | TOPSIS ranking of the 6 internal indices |
 | `plot_indices` | `plot_indices_external`, `plot_indices_internal` (2) | type fan-out; external = 6 heatmaps, internal = 1 ranked heatmap |
 | `annot_export` | `annot_export` | `cp {input} {output}` |
-| `env_export` (7) | **not ported** | requires runtime `conda env export`; the pinned envs are committed under `envs/` instead (see README) |
-| `config_export` | **not ported** | dumps the in-memory Snakemake config; `[config]` in `main.oxoflow` documents the same values |
-| `plot_dimred_features` | **not ported** | upstream default `features_to_plot: []` produces no output on the default path |
-| `report/` generation | **not ported** | Snakemake report metadata has no oxo-flow counterpart |
+| `env_export` (7) | `env_export_{umap_leiden,clusterCrit,clustree,ComplexHeatmap,ggplot,plotly,pymcdm}` (7) | resolved-env snapshot: oxo-flow runs each rule inside its pinned env via `conda run`, so `conda env export -p "$CONDA_PREFIX"` exports the ANALYSIS env (mamba fallback; mem 1000M like upstream) |
+| `config_export` | **not ported** | see "Remaining exclusions" below |
+| `report/` generation | **not ported** | see "Remaining exclusions" below |
 
 ### Porting notes and deviations
 
@@ -179,6 +181,34 @@ of the default-parameter path is executed, none are stubbed):
    interactive plots 8000M, internal validation 2x).
 6. **Environment**: each rule pins the same conda environment as upstream
    (7 environments, copied verbatim from `workflow/envs/`).
+7. **Boolean gate instead of list gate**: upstream runs `plot_dimred_features`
+   only when `len(features_to_plot) > 0`; the oxo-flow `when` evaluator
+   compares scalar config values (booleans, numbers, strings), not arrays, so
+   the port carries the gate on `config.plot_dimred_features` (default
+   `false`, matching the upstream default of an empty `features_to_plot`).
+   Enable it together with a non-empty `features_to_plot` — the plotting
+   script then uses the requested features, or falls back to the first 10
+   columns when the requested features are absent.
+
+### Remaining exclusions (with evidence)
+
+1. **`config_export`** — upstream dumps the effective in-memory Snakemake
+   config to `results/configs/{project}_config.yaml`. In oxo-flow the config
+   IS the committed `[config]` table of `main.oxoflow` (there is no external
+   runtime config object), and the effective config is introspectable at any
+   time with `oxo-flow config show` / `oxo-flow config get <key>` (resolved
+   values after CLI overrides). A dump rule would have to enumerate every key as a
+   `{config.x}` placeholder — duplicating `[config]` while drifting whenever
+   a key is added or renamed. The sibling `annot_export` IS ported because
+   the annotation CSV is external data, not the workflow's own declaration.
+2. **`report/` generation** — the Snakemake report book is an HTML
+   aggregation of rule outputs carrying per-artifact metadata (captions from
+   `workflow/report/*.rst`, categories, subcategories, labels) attached
+   through `report(...)` output wrappers. oxo-flow has no wrapper-metadata
+   channel, and its own `oxo-flow report` command produces an execution
+   report from the checkpoint (rule status, timings, provenance), not an
+   artifact catalog book. All underlying artifact outputs are produced by
+   the ported rules — only the book itself is absent.
 
 ## Test
 
