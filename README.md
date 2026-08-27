@@ -55,12 +55,12 @@ cd oxo-flow-unsupervised
 - **Compute**: up to 2 CPUs and 32 GB RAM per rule (defaults `threads = 2`,
   `mem_mb = 32000`); 7 plotting rules use 8 GB. Lower limits are fine for the
   bundled digits dataset.
-- **Tools**: conda environments with pinned versions. 58 of the 61 rules pin
+- **Tools**: conda environments with pinned versions. 60 of the 61 rules pin
   one of the 7 environments committed under `envs/` (e.g. `scikit-learn=1.3.0`,
   `leidenalg=0.10.1`, `r-ggplot2=3.3.6`); oxo-flow creates these with
   conda/mamba on first run, so a conda (or mamba/micromamba) installation is
-  required. The remaining 3 rules need no environment (two pure-Python
-  aggregation scripts and one file copy).
+  required. The remaining rule (`annot_export`, a file copy) needs no
+  environment.
 
 ## Usage
 
@@ -68,7 +68,8 @@ cd oxo-flow-unsupervised
 # validate, lint, and dry-run the workflow
 ./test/run.sh
 
-# run everything (all 61 rules for sample "digits")
+# run the workflow for sample "digits" (the two plot_dimred_features_*
+# rules are when-gated on config.plot_dimred_features, default false)
 oxo-flow run main.oxoflow
 ```
 
@@ -88,6 +89,8 @@ overridden with `oxo-flow run main.oxoflow -c key=value` (or a config file):
 | `threads` / `mem_mb` | `2` / `32000` | `threads` / `mem` |
 | `project_name` | `digits` | `project_name` |
 | `data_dir` | `test/fixtures` | annotation `data`/`metadata` columns |
+| `result_path` | `results` | `result_path` (upstream test default `.test/results/`) |
+| `samples_by_features` | `1` | annotation `samples_by_features` column |
 | `pca_svd_solver` / `pca_n_components` | `auto` / `0.9` | `pca.svd_solver` / `pca.n_components` |
 | `umap_metric` / `umap_n_neighbors` / `umap_min_dist` | `euclidean` / `15` / `0.1` | `umap.metrics[0]` / `umap.n_neighbors[0]` / `umap.min_dist[0]` |
 | `umap_densmap` / `umap_connectivity` / `umap_diagnostics` | `1` / `1` / `1` | `umap.densmap` / `umap.connectivity` / `umap.diagnostics` |
