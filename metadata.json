@@ -88,7 +88,6 @@
     "env_export_pymcdm"
   ],
   "excluded": [
-    "config_export — dumps the in-memory Snakemake config object via a run: block; the equivalent oxo-flow [config] table is committed in main.oxoflow and the effective config (after CLI overrides) is introspectable via `oxo-flow config show` / `oxo-flow config get`; a placeholder-enumerated dump rule would duplicate [config] and drift when keys change.",
     "report/ generation — Snakemake `report(...)` wrapper metadata (captions, categories, labels) has no oxo-flow counterpart; all underlying rule outputs are produced, and `oxo-flow report` generates an execution report from the checkpoint (rule status/timings), not the Snakemake artifact-catalog book."
   ],
   "rule_count": 61,
