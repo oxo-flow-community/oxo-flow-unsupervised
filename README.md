@@ -150,7 +150,7 @@ of the default-parameter path is executed, none are stubbed):
 | `plot_dimred_clustering` | `plot_dimred_clustering_{pca,umap,densmap}` (3) | same |
 | `plot_pca_diagnostics` | `plot_pca_diagnostics` | variance/pairs/loadings/lollipop PNGs, mem 8000M |
 | `plot_umap_diagnostics` | `plot_umap_diagnostics_{umap,densmap}` (2) | mem 32000M (upstream) |
-| `plot_umap_connectivity` | `plot_umap_connectivity_{umap,densmap}` (2) | mem 16000M (upstream) |
+| `plot_umap_connectivity` | `plot_umap_connectivity_{umap,densmap}` (2) | mem 32000M ([defaults]) |
 | `plot_dimred_interactive` | `plot_dimred_interactive_{pca,umap,densmap}_{2d,3d}` (6) | n_components fan-out; mem 8000M |
 | `plot_heatmap` | `plot_heatmap_{correlation,cosine}` (2) | metric fan-out; hclust method from default list |
 | `clustree_analysis` | `clustree_analysis_default`, `clustree_analysis_custom` (2) | content fan-out |
