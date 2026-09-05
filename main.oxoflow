@@ -359,6 +359,7 @@ input = [
 ]
 output = ["{config.result_path}/unsupervised_analysis/{sample}/PCA/plots/PCA_{config.pca_svd_solver}_{config.pca_n_components}_2/features"]
 description = "PCA 2D scatter plots of per-feature values (features_to_plot)"
+report = "Visualization after dimensionality reduction to two components with the method/parameters encoded in the output path, colored by selected features (upstream workflow/report/dimred_2d_features.rst)."
 script = "scripts/plot_2d.R --data {input[0]} --axes {input[1]} --metadata {input[2]} --out {output} --size {config.scatterplot2d_size} --alpha {config.scatterplot2d_alpha} --coord-fixed {config.coord_fixed}"
 [rules.environment]
 conda = "envs/ggplot.yaml"
@@ -376,6 +377,7 @@ input = [
 ]
 output = ["{config.result_path}/unsupervised_analysis/{sample}/UMAP/plots/UMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2/features"]
 description = "UMAP 2D scatter plots of per-feature values (features_to_plot)"
+report = "Visualization after dimensionality reduction to two components with the method/parameters encoded in the output path, colored by selected features (upstream workflow/report/dimred_2d_features.rst)."
 script = "scripts/plot_2d.R --data {input[0]} --axes {input[1]} --metadata {input[2]} --out {output} --size {config.scatterplot2d_size} --alpha {config.scatterplot2d_alpha} --coord-fixed {config.coord_fixed}"
 [rules.environment]
 conda = "envs/ggplot.yaml"
@@ -392,6 +394,7 @@ input = [
 ]
 output = ["{config.result_path}/unsupervised_analysis/{sample}/PCA/plots/PCA_{config.pca_svd_solver}_{config.pca_n_components}_2/metadata"]
 description = "PCA 2D scatter plots colored by metadata"
+report = "Visualization after dimensionality reduction to two components with the method/parameters encoded in the output path, colored by metadata (upstream workflow/report/dimred_2d_metadata.rst)."
 script = "scripts/plot_2d.R --data {input[0]} --axes {input[1]} --metadata {input[2]} --out {output} --size {config.scatterplot2d_size} --alpha {config.scatterplot2d_alpha} --coord-fixed {config.coord_fixed}"
 [rules.environment]
 conda = "envs/ggplot.yaml"
@@ -408,6 +411,7 @@ input = [
 ]
 output = ["{config.result_path}/unsupervised_analysis/{sample}/UMAP/plots/UMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2/metadata"]
 description = "UMAP 2D scatter plots colored by metadata"
+report = "Visualization after dimensionality reduction to two components with the method/parameters encoded in the output path, colored by metadata (upstream workflow/report/dimred_2d_metadata.rst)."
 script = "scripts/plot_2d.R --data {input[0]} --axes {input[1]} --metadata {input[2]} --out {output} --size {config.scatterplot2d_size} --alpha {config.scatterplot2d_alpha} --coord-fixed {config.coord_fixed}"
 [rules.environment]
 conda = "envs/ggplot.yaml"
@@ -424,6 +428,7 @@ input = [
 ]
 output = ["{config.result_path}/unsupervised_analysis/{sample}/densMAP/plots/densMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2/metadata"]
 description = "densMAP 2D scatter plots colored by metadata"
+report = "Visualization after dimensionality reduction to two components with the method/parameters encoded in the output path, colored by metadata (upstream workflow/report/dimred_2d_metadata.rst)."
 script = "scripts/plot_2d.R --data {input[0]} --axes {input[1]} --metadata {input[2]} --out {output} --size {config.scatterplot2d_size} --alpha {config.scatterplot2d_alpha} --coord-fixed {config.coord_fixed}"
 [rules.environment]
 conda = "envs/ggplot.yaml"
@@ -440,6 +445,7 @@ input = [
 ]
 output = ["{config.result_path}/unsupervised_analysis/{sample}/PCA/plots/PCA_{config.pca_svd_solver}_{config.pca_n_components}_2/clustering"]
 description = "PCA 2D scatter plots colored by clustering results"
+report = "Visualization after dimensionality reduction to two components with the method/parameters encoded in the output path, colored by determined clustering results (upstream workflow/report/dimred_2d_clusterings.rst)."
 script = "scripts/plot_2d.R --data {input[0]} --axes {input[1]} --metadata {input[2]} --out {output} --size {config.scatterplot2d_size} --alpha {config.scatterplot2d_alpha} --coord-fixed {config.coord_fixed}"
 [rules.environment]
 conda = "envs/ggplot.yaml"
@@ -456,6 +462,7 @@ input = [
 ]
 output = ["{config.result_path}/unsupervised_analysis/{sample}/UMAP/plots/UMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2/clustering"]
 description = "UMAP 2D scatter plots colored by clustering results"
+report = "Visualization after dimensionality reduction to two components with the method/parameters encoded in the output path, colored by determined clustering results (upstream workflow/report/dimred_2d_clusterings.rst)."
 script = "scripts/plot_2d.R --data {input[0]} --axes {input[1]} --metadata {input[2]} --out {output} --size {config.scatterplot2d_size} --alpha {config.scatterplot2d_alpha} --coord-fixed {config.coord_fixed}"
 [rules.environment]
 conda = "envs/ggplot.yaml"
@@ -472,6 +479,7 @@ input = [
 ]
 output = ["{config.result_path}/unsupervised_analysis/{sample}/densMAP/plots/densMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2/clustering"]
 description = "densMAP 2D scatter plots colored by clustering results"
+report = "Visualization after dimensionality reduction to two components with the method/parameters encoded in the output path, colored by determined clustering results (upstream workflow/report/dimred_2d_clusterings.rst)."
 script = "scripts/plot_2d.R --data {input[0]} --axes {input[1]} --metadata {input[2]} --out {output} --size {config.scatterplot2d_size} --alpha {config.scatterplot2d_alpha} --coord-fixed {config.coord_fixed}"
 [rules.environment]
 conda = "envs/ggplot.yaml"
@@ -495,6 +503,7 @@ output = [
     "{config.result_path}/unsupervised_analysis/{sample}/PCA/plots/PCA_{config.pca_svd_solver}_{config.pca_n_components}/diagnostics/loadings_lollipop.png",
 ]
 description = "PCA diagnostics: scree/cumulative variance, pairs, loadings and lollipop plots"
+report = "PCA variance-explained plots (scree/elbow and cumulative explained variance) of all and top 10% Principal Components; pairwise plots of the first 10 PCs colored by the configured metadata of interest; top-10 loading plots per PC combination and top loadings as lollipop plot (upstream workflow/report/pca_diagnostics.rst, four report() outputs in one rule)."
 script = "scripts/plot_pca.R --data {input[0]} --var {input[1]} --axes {input[2]} --loadings {input[3]} --metadata {input[4]} --out-variance {output[0]} --out-pairs {output[1]} --out-loadings {output[2]} --out-lollipop {output[3]} --metadata-of-interest {config.metadata_of_interest} --size {config.scatterplot2d_size} --alpha {config.scatterplot2d_alpha}"
 [rules.environment]
 conda = "envs/ggplot.yaml"
@@ -507,6 +516,7 @@ name = "plot_umap_diagnostics_umap"
 input = ["{config.result_path}/unsupervised_analysis/{sample}/UMAP/UMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2_object.pickle"]
 output = ["{config.result_path}/unsupervised_analysis/{sample}/UMAP/plots/UMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2/diagnostics/diagnostics.png"]
 description = "UMAP diagnostic visualizations"
+report = "UMAP diagnostics plots with the metric/neighbor/dist parameters encoded in the output path (upstream workflow/report/umap_diagnostics.rst)."
 script = "scripts/plot_umap_diagnostics.py --object {input} --out {output}"
 [rules.environment]
 conda = "envs/umap_leiden.yaml"
@@ -517,6 +527,7 @@ name = "plot_umap_diagnostics_densmap"
 input = ["{config.result_path}/unsupervised_analysis/{sample}/densMAP/densMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2_object.pickle"]
 output = ["{config.result_path}/unsupervised_analysis/{sample}/densMAP/plots/densMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2/diagnostics/diagnostics.png"]
 description = "densMAP diagnostic visualizations"
+report = "densMAP diagnostics plots with the metric/neighbor/dist parameters encoded in the output path (upstream workflow/report/umap_diagnostics.rst)."
 script = "scripts/plot_umap_diagnostics.py --object {input} --out {output}"
 [rules.environment]
 conda = "envs/umap_leiden.yaml"
@@ -527,6 +538,7 @@ name = "plot_umap_connectivity_umap"
 input = ["{config.result_path}/unsupervised_analysis/{sample}/UMAP/UMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2_object.pickle"]
 output = ["{config.result_path}/unsupervised_analysis/{sample}/UMAP/plots/UMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2/diagnostics/connectivity.png"]
 description = "UMAP connectivity plot"
+report = "UMAP network-connectivity plot with edge-bundling (hammer algorithm variant) and the metric/neighbor/dist parameters encoded in the output path (upstream workflow/report/umap_connectivity.rst)."
 script = "scripts/plot_umap_connectivity.py --object {input} --out {output}"
 [rules.environment]
 conda = "envs/umap_leiden.yaml"
@@ -537,6 +549,7 @@ name = "plot_umap_connectivity_densmap"
 input = ["{config.result_path}/unsupervised_analysis/{sample}/densMAP/densMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2_object.pickle"]
 output = ["{config.result_path}/unsupervised_analysis/{sample}/densMAP/plots/densMAP_{config.umap_metric}_{config.umap_n_neighbors}_{config.umap_min_dist}_2/diagnostics/connectivity.png"]
 description = "densMAP connectivity plot"
+report = "densMAP network-connectivity plot with edge-bundling (hammer algorithm variant) and the metric/neighbor/dist parameters encoded in the output path (upstream workflow/report/umap_connectivity.rst)."
 script = "scripts/plot_umap_connectivity.py --object {input} --out {output}"
 [rules.environment]
 conda = "envs/umap_leiden.yaml"
@@ -660,6 +673,7 @@ input = [
 ]
 output = ["{config.result_path}/unsupervised_analysis/{sample}/Heatmap/plots/Heatmap_correlation_{config.heatmap_hclust_method}.png"]
 description = "Hierarchical clustering heatmap (correlation distance)"
+report = "ComplexHeatmap of the sample matrix scaled by features (z-scores), hierarchically clustered (hclust method in the output path, correlation distance), annotated by the configured metadata of interest, value-colorscape limited to the top percentiles (upstream workflow/report/heatmap.rst)."
 script = "scripts/plot_heatmap.R --data {input[0]} --metadata {input[1]} --obs-dist {input[2]} --feat-dist {input[3]} --out {output} --metric correlation --hclust-method {config.heatmap_hclust_method} --samples-by-features {config.samples_by_features} --metadata-of-interest {config.metadata_of_interest}"
 [rules.environment]
 conda = "envs/ComplexHeatmap.yaml"
@@ -675,6 +689,7 @@ input = [
 ]
 output = ["{config.result_path}/unsupervised_analysis/{sample}/Heatmap/plots/Heatmap_cosine_{config.heatmap_hclust_method}.png"]
 description = "Hierarchical clustering heatmap (cosine distance)"
+report = "ComplexHeatmap of the sample matrix scaled by features (z-scores), hierarchically clustered (hclust method in the output path, cosine distance), annotated by the configured metadata of interest, value-colorscape limited to the top percentiles (upstream workflow/report/heatmap.rst)."
 script = "scripts/plot_heatmap.R --data {input[0]} --metadata {input[1]} --obs-dist {input[2]} --feat-dist {input[3]} --out {output} --metric cosine --hclust-method {config.heatmap_hclust_method} --samples-by-features {config.samples_by_features} --metadata-of-interest {config.metadata_of_interest}"
 [rules.environment]
 conda = "envs/ComplexHeatmap.yaml"
@@ -692,6 +707,7 @@ input = [
 ]
 output = ["{config.result_path}/unsupervised_analysis/{sample}/clustree/default.png"]
 description = "Clustree analysis of clusterings (default)"
+report = "Cluster analysis and visualization using clustree (highlighted content: default) (upstream workflow/report/clustree.rst)."
 script = "scripts/clustree.R --clusterings {input[0]} --metadata {input[1]} --out {output} --content default --count-filter {config.clustree_count_filter} --prop-filter {config.clustree_prop_filter} --layout {config.clustree_layout} --cat-label {config.clustree_categorical_label_option} --num-aggr {config.clustree_numerical_aggregation_option} --custom-metadata {config.metadata_of_interest}"
 [rules.environment]
 conda = "envs/clustree.yaml"
@@ -705,6 +721,7 @@ input = [
 ]
 output = ["{config.result_path}/unsupervised_analysis/{sample}/clustree/custom.png"]
 description = "Clustree analysis of clusterings with custom metadata"
+report = "Cluster analysis and visualization using clustree (highlighted content: custom metadata/features) (upstream workflow/report/clustree.rst)."
 script = "scripts/clustree.R --clusterings {input[0]} --metadata {input[1]} --out {output} --content custom --count-filter {config.clustree_count_filter} --prop-filter {config.clustree_prop_filter} --layout {config.clustree_layout} --cat-label {config.clustree_categorical_label_option} --num-aggr {config.clustree_numerical_aggregation_option} --custom-metadata {config.metadata_of_interest}"
 [rules.environment]
 conda = "envs/clustree.yaml"
@@ -718,6 +735,7 @@ input = [
 ]
 output = ["{config.result_path}/unsupervised_analysis/{sample}/clustree/metadata"]
 description = "Clustree analysis highlighting metadata"
+report = "Cluster analysis and visualization using clustree (highlighted content: per-metadata PNGs in the output directory) (upstream workflow/report/clustree.rst)."
 script = "scripts/clustree.R --clusterings {input[0]} --metadata {input[1]} --out {output} --content metadata --count-filter {config.clustree_count_filter} --prop-filter {config.clustree_prop_filter} --layout {config.clustree_layout} --cat-label {config.clustree_categorical_label_option} --num-aggr {config.clustree_numerical_aggregation_option} --custom-metadata {config.metadata_of_interest}"
 [rules.environment]
 conda = "envs/clustree.yaml"
@@ -875,6 +893,7 @@ input = [
 ]
 output = ["{config.result_path}/unsupervised_analysis/{sample}/cluster_validation/plots/external"]
 description = "Heatmaps of external cluster indices"
+report = "Hierarchically clustered heatmap of external cluster indices (upstream workflow/report/cluster_validation.rst)."
 script = "scripts/plot_indices.R --type external --paths {input} --out {output}"
 [rules.environment]
 conda = "envs/ggplot.yaml"
@@ -885,6 +904,7 @@ name = "plot_indices_internal"
 input = ["{config.result_path}/unsupervised_analysis/{sample}/cluster_validation/internal_indices_ranked.csv"]
 output = ["{config.result_path}/unsupervised_analysis/{sample}/cluster_validation/plots/internal"]
 description = "Heatmap of ranked internal cluster indices"
+report = "Hierarchically clustered heatmap of internal cluster indices (upstream workflow/report/cluster_validation.rst)."
 script = "scripts/plot_indices.R --type internal --paths {input} --out {output}"
 [rules.environment]
 conda = "envs/ggplot.yaml"
@@ -904,6 +924,7 @@ conda = "envs/ggplot.yaml"
 name = "env_export_umap_leiden"
 output = ["{config.result_path}/unsupervised_analysis/envs/umap_leiden.yaml"]
 description = "Snapshot the resolved umap_leiden conda environment"
+report = "Conda environment export documenting the installed software with versions and builds (upstream workflow/report/software.rst)."
 shell = "conda env export -p \"$CONDA_PREFIX\" > {output} || mamba env export -p \"$CONDA_PREFIX\" > {output}"
 [rules.environment]
 conda = "envs/umap_leiden.yaml"
@@ -914,6 +935,7 @@ memory = "1000M"
 name = "env_export_clusterCrit"
 output = ["{config.result_path}/unsupervised_analysis/envs/clusterCrit.yaml"]
 description = "Snapshot the resolved clusterCrit conda environment"
+report = "Conda environment export documenting the installed software with versions and builds (upstream workflow/report/software.rst)."
 shell = "conda env export -p \"$CONDA_PREFIX\" > {output} || mamba env export -p \"$CONDA_PREFIX\" > {output}"
 [rules.environment]
 conda = "envs/clusterCrit.yaml"
@@ -924,6 +946,7 @@ memory = "1000M"
 name = "env_export_clustree"
 output = ["{config.result_path}/unsupervised_analysis/envs/clustree.yaml"]
 description = "Snapshot the resolved clustree conda environment"
+report = "Conda environment export documenting the installed software with versions and builds (upstream workflow/report/software.rst)."
 shell = "conda env export -p \"$CONDA_PREFIX\" > {output} || mamba env export -p \"$CONDA_PREFIX\" > {output}"
 [rules.environment]
 conda = "envs/clustree.yaml"
@@ -934,6 +957,7 @@ memory = "1000M"
 name = "env_export_ComplexHeatmap"
 output = ["{config.result_path}/unsupervised_analysis/envs/ComplexHeatmap.yaml"]
 description = "Snapshot the resolved ComplexHeatmap conda environment"
+report = "Conda environment export documenting the installed software with versions and builds (upstream workflow/report/software.rst)."
 shell = "conda env export -p \"$CONDA_PREFIX\" > {output} || mamba env export -p \"$CONDA_PREFIX\" > {output}"
 [rules.environment]
 conda = "envs/ComplexHeatmap.yaml"
@@ -944,6 +968,7 @@ memory = "1000M"
 name = "env_export_ggplot"
 output = ["{config.result_path}/unsupervised_analysis/envs/ggplot.yaml"]
 description = "Snapshot the resolved ggplot conda environment"
+report = "Conda environment export documenting the installed software with versions and builds (upstream workflow/report/software.rst)."
 shell = "conda env export -p \"$CONDA_PREFIX\" > {output} || mamba env export -p \"$CONDA_PREFIX\" > {output}"
 [rules.environment]
 conda = "envs/ggplot.yaml"
@@ -954,6 +979,7 @@ memory = "1000M"
 name = "env_export_plotly"
 output = ["{config.result_path}/unsupervised_analysis/envs/plotly.yaml"]
 description = "Snapshot the resolved plotly conda environment"
+report = "Conda environment export documenting the installed software with versions and builds (upstream workflow/report/software.rst)."
 shell = "conda env export -p \"$CONDA_PREFIX\" > {output} || mamba env export -p \"$CONDA_PREFIX\" > {output}"
 [rules.environment]
 conda = "envs/plotly.yaml"
@@ -964,6 +990,7 @@ memory = "1000M"
 name = "env_export_pymcdm"
 output = ["{config.result_path}/unsupervised_analysis/envs/pymcdm.yaml"]
 description = "Snapshot the resolved pymcdm conda environment"
+report = "Conda environment export documenting the installed software with versions and builds (upstream workflow/report/software.rst)."
 shell = "conda env export -p \"$CONDA_PREFIX\" > {output} || mamba env export -p \"$CONDA_PREFIX\" > {output}"
 [rules.environment]
 conda = "envs/pymcdm.yaml"
@@ -976,4 +1003,5 @@ name = "annot_export"
 input = ["config/annotation.csv"]
 output = ["{config.result_path}/unsupervised_analysis/configs/{config.project_name}_annot.csv"]
 description = "Copy the annotation file for documentation and reproducibility"
+report = "Configuration and annotation files for documentation (upstream workflow/report/configs.rst)."
 shell = "cp {input} {output}"

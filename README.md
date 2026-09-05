@@ -18,7 +18,9 @@ direct inspection or downstream use.
 
 ### 1. Install oxo-flow
 
-This workflow requires oxo-flow >= 0.12.0.
+This workflow requires oxo-flow >= 0.12.0. The `report = "…"` caption
+annotations on 28 rules additionally need **>= 0.17.0** (the rule-captions
+report section) and are ignored by older engines.
 
 Recommended — release binary (Linux x86_64):
 
@@ -160,7 +162,7 @@ of the default-parameter path is executed, none are stubbed):
 | `annot_export` | `annot_export` | `cp {input} {output}` |
 | `env_export` (7) | `env_export_{umap_leiden,clusterCrit,clustree,ComplexHeatmap,ggplot,plotly,pymcdm}` (7) | resolved-env snapshot: oxo-flow runs each rule inside its pinned env via `conda run`, so `conda env export -p "$CONDA_PREFIX"` exports the ANALYSIS env (mamba fallback; mem 1000M like upstream) |
 | `config_export` | **not ported** | see "Remaining exclusions" below |
-| `report/` generation | **not ported** | see "Remaining exclusions" below |
+| `report/` generation | **captions ported** | per-rule captions as `report = "…"` annotations; book form not ported — see "Remaining exclusions" below |
 
 ### Porting notes and deviations
 
@@ -204,14 +206,22 @@ of the default-parameter path is executed, none are stubbed):
    `{config.x}` placeholder — duplicating `[config]` while drifting whenever
    a key is added or renamed. The sibling `annot_export` IS ported because
    the annotation CSV is external data, not the workflow's own declaration.
-2. **`report/` generation** — the Snakemake report book is an HTML
+2. **`report/` generation (book form)** — the Snakemake report book is an HTML
    aggregation of rule outputs carrying per-artifact metadata (captions from
    `workflow/report/*.rst`, categories, subcategories, labels) attached
-   through `report(...)` output wrappers. oxo-flow has no wrapper-metadata
-   channel, and its own `oxo-flow report` command produces an execution
-   report from the checkpoint (rule status, timings, provenance), not an
-   artifact catalog book. All underlying artifact outputs are produced by
-   the ported rules — only the book itself is absent.
+   through `report(...)` output wrappers. The **captions are ported**: the 28
+   rules upstream wraps in `report(...)` (dimred/heatmap/clustree/indices
+   plots, PCA/UMAP diagnostics and connectivity, 7 `env_export` snapshots,
+   `annot_export`) carry a `report = "…"` annotation with the upstream .rst
+   caption inlined (rendered by the engine rule-captions report section,
+   needs oxo-flow >= 0.17.0; older engines ignore the key). What has no
+   oxo-flow equivalent is the **book form**: the self-contained HTML
+   aggregation with figures embedded and categories/subcategories/labels
+   (static text only — the engine does not interpolate wildcards), the
+   workflow-level `report:` directive (`workflow/report/workflow.rst`), and
+   `oxo-flow report` itself produces an execution report from the checkpoint
+   (rule status, timings, provenance), not an artifact-catalog book. All
+   underlying artifact outputs are produced by the ported rules.
 
 ## Test
 
