@@ -214,14 +214,15 @@ of the default-parameter path is executed, none are stubbed):
    plots, PCA/UMAP diagnostics and connectivity, 7 `env_export` snapshots,
    `annot_export`) carry a `report = "…"` annotation with the upstream .rst
    caption inlined (rendered by the engine rule-captions report section,
-   needs oxo-flow >= 0.17.0; older engines ignore the key). What has no
-   oxo-flow equivalent is the **book form**: the self-contained HTML
-   aggregation with figures embedded and categories/subcategories/labels
-   (static text only — the engine does not interpolate wildcards), the
-   workflow-level `report:` directive (`workflow/report/workflow.rst`), and
-   `oxo-flow report` itself produces an execution report from the checkpoint
-   (rule status, timings, provenance), not an artifact-catalog book. All
-   underlying artifact outputs are produced by the ported rules.
+   needs oxo-flow >= 0.17.0; older engines ignore the key). The **book form**
+   (self-contained HTML aggregation with figures embedded and
+   categories/subcategories/labels — static text only, the engine does not
+   interpolate wildcards) and the workflow-level `report:` directive
+   (`workflow/report/workflow.rst`) are Snakemake-specific reporting
+   infrastructure, not analysis logic; the engine-native `oxo-flow report`
+   (html/md/pdf) renders execution state (rule status, timings, provenance)
+   and the rule captions natively. All underlying artifact outputs are
+   produced by the ported rules.
 
 ## Test
 
